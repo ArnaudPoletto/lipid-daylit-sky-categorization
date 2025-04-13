@@ -1,14 +1,17 @@
-# TODO: make test and val more seeded: precompute list of indexes maybe? be aware of seeding transformations too maybe...
-
 import os
 import sys
 import cv2
+import torch
 import random
+import numpy as np
 import albumentations as A
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
+from torch.utils.data import Dataset, DataLoader
+from albumentations.pytorch.transforms import ToTensorV2
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.utils.random import set_seed
 from src.utils.file import get_paths_recursive
 from src.config import (
     SKY_FINDER_IMAGES_PATH,
@@ -16,21 +19,22 @@ from src.config import (
     SKY_FINDER_MASKS_PATH,
     PATCH_WIDTH,
     PATCH_HEIGHT,
+    N_PAIRS,
+    SPLITS,
+    SEED,
 )
 
-import torch
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
+from src.utils.random import SeededDataLoader
 
 
-class SkyFinderDataset(Dataset):
+class ContrastivePairsDataset(Dataset):
     """
     TODO: Add a description of the dataset.
     """
 
     def _create_balanced_indices(
-        self, 
-        epoch_multiplier: int
+        self,
+        epoch_multiplier: int,
     ) -> Tuple[list, list, int]:
         """
         Create a balanced dataset with weights for each image based on the class and camera ID.
@@ -46,7 +50,8 @@ class SkyFinderDataset(Dataset):
         # Get all sky classes and their camera IDs
         sky_classes = list(self.paths_dict.keys())
         camera_ids_by_class = {
-            sky_class: list(self.paths_dict[sky_class].keys()) for sky_class in sky_classes
+            sky_class: list(self.paths_dict[sky_class].keys())
+            for sky_class in sky_classes
         }
 
         # Get the number of images in total, per class, and per camera
@@ -196,17 +201,24 @@ class SkyFinderDataset(Dataset):
         self,
         paths_dict: Dict[str, Dict[str, List[str]]],
         epoch_multiplier: int,
+        n_pairs: int = 3,
     ) -> None:
         """
-        Initialize the SkyFinderDataset class.
+        Initialize the ContrastivePairsDataset class.
 
         Args:
             epoch_multiplier (int): The average number of images to sample from a single class-camera pair in each epoch.
+            n_pairs (int): The number of pairs to sample for each image.
         """
         self.paths_dict = paths_dict
-        self.all_images, self.weights, self.epoch_size = self._create_balanced_indices(epoch_multiplier)
+        self.epoch_multiplier = epoch_multiplier
+        self.n_pairs = n_pairs
+
+        self.all_images, self.weights, self.epoch_size = self._create_balanced_indices(
+            epoch_multiplier
+        )
         self.masks = self._get_masks()
-        self.bounding_boxes = SkyFinderDataset._get_bounding_boxes(self.masks)
+        self.bounding_boxes = ContrastivePairsDataset._get_bounding_boxes(self.masks)
 
     def __len__(self) -> int:
         """
@@ -309,6 +321,15 @@ class SkyFinderDataset(Dataset):
                     var_limit=(10.0, 50.0),
                     p=0.5,
                 ),
+                A.Normalize(
+                    mean=(0.485, 0.456, 0.406),
+                    std=(0.229, 0.224, 0.225),
+                    max_pixel_value=255.0,
+                    p=1.0,
+                ),
+                ToTensorV2(
+                    p=1.0,
+                ),
             ]
         )
 
@@ -360,184 +381,197 @@ class SkyFinderDataset(Dataset):
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing the anchor patch, positive patch, and negative patch.
         """
-        # Get anchor and positive patches
-        sampled_idx = random.choices(
-            range(len(self.all_images)), weights=self.weights, k=1
-        )[0]
-        processed_image = self._get_processed_image_from_idx(sampled_idx)
-        anchor_patch = SkyFinderDataset._get_patch(processed_image)
-        positive_patch = SkyFinderDataset._get_patch(processed_image)
-
-        # Get negative patch
-        neg_sampled_idx = sampled_idx
-        while neg_sampled_idx == sampled_idx:
-            neg_sampled_idx = random.choices(
-                range(len(self.all_images)), weights=self.weights, k=1
-            )[0]
-        processed_negative_image = self._get_processed_image_from_idx(neg_sampled_idx)
-        negative_patch = SkyFinderDataset._get_patch(processed_negative_image)
-
-        return anchor_patch, positive_patch, negative_patch
-
-
-def get_paths_dict() -> Dict[str, Dict[str, List[str]]]:
-    """
-    Initialize the paths dictionary for the dataset.
-    The dictionary contains a 3-level structure:
-    - Level 1: Sky class, either clear, partial or overcast
-    - Level 2: Folder name, corresponding to the sky finder dataset camera identifier
-    - Level 3: List of image paths
-
-    Returns:
-        Dict[str, Dict[str, List[str]]]: A dictionary with sky classes as keys and dictionaries of folder names and image paths as values.
-    """
-    paths_dict = {}
-    for sky_class in SKY_FINDER_SKY_CLASSES:
-        paths_dict[sky_class] = {}
-        sky_finder_class_images_path = f"{SKY_FINDER_IMAGES_PATH}/{sky_class}"
-        folder_names = os.listdir(sky_finder_class_images_path)
-        for folder_name in folder_names:
-            folder_path = os.path.join(sky_finder_class_images_path, folder_name)
-            if not os.path.isdir(folder_path):
-                continue
-
-            image_paths = get_paths_recursive(
-                folder_path=folder_path,
-                match_pattern="*.jpg",
-                path_type="f",
-                recursive=True,
+        # Get n_pairs image indexes, without replacement
+        sampled_idx = np.random.choice(
+            range(len(self.all_images)),
+            size=self.n_pairs,
+            replace=False,
+            p=self.weights,
+        )
+        processed_images = [
+            self._get_processed_image_from_idx(idx) for idx in sampled_idx
+        ]
+        pairs = [
+            torch.stack(
+                [
+                    ContrastivePairsDataset._get_patch(image),
+                    ContrastivePairsDataset._get_patch(image),
+                ],
+                dim=0,
             )
-            paths_dict[sky_class][folder_name] = image_paths
+            for image in processed_images
+        ]
+        pairs = torch.stack(pairs, dim=0)
 
-    return paths_dict
-
-
-def get_splitted_paths_dict(
-    train_split: float,
-    val_split: float,
-    test_split: float,
-) -> Tuple[
-    Dict[str, Dict[str, List[str]]],
-    Dict[str, Dict[str, List[str]]],
-    Dict[str, Dict[str, List[str]]],
-]:
-    """
-    Split the paths dictionary into train, validation and test sets.
-
-    Args:
-        train_split (float): The proportion of the dataset to include in the train split.
-        val_split (float): The proportion of the dataset to include in the validation split.
-        test_split (float): The proportion of the dataset to include in the test split.
-
-    Returns:
-        Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]]]: A tuple containing three dictionaries for train, validation and test splits.
-    """
-    if not np.isclose(train_split + val_split + test_split, 1.0):
-        raise ValueError("❌ Train, validation and test splits must sum to 1.0.")
-
-    # Get the paths dictionary
-    paths_dict = get_paths_dict()
-
-    # Split the paths dictionary into train, validation and test sets
-    train_paths_dict = {}
-    val_paths_dict = {}
-    test_paths_dict = {}
-    for sky_class, folders in paths_dict.items():
-        train_paths_dict[sky_class] = {}
-        val_paths_dict[sky_class] = {}
-        test_paths_dict[sky_class] = {}
-
-        for folder_name, image_paths in folders.items():
-            shuffled_image_paths = image_paths.copy()
-            random.shuffle(shuffled_image_paths)
-
-            n_images = len(shuffled_image_paths)
-            n_train = int(n_images * train_split)
-            n_val = int(n_images * val_split)
-
-            train_paths_dict[sky_class][folder_name] = shuffled_image_paths[:n_train]
-            val_paths_dict[sky_class][folder_name] = shuffled_image_paths[
-                n_train : n_train + n_val
-            ]
-            test_paths_dict[sky_class][folder_name] = shuffled_image_paths[
-                n_train + n_val :
-            ]
-
-    return train_paths_dict, val_paths_dict, test_paths_dict
+        return pairs
 
 
-def get_dataloaders(
-    batch_size: int = 32,
-    num_workers: int = 4,
-    epoch_multipliers: Tuple[int, int, int] = (100, 10, 10),
-    splits: Tuple[float, float, float] = (0.8, 0.1, 0.1),
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    """
-    Create the DataLoaders for the train, validation and test sets.
-    
-    Args:
-        batch_size (int): The batch size for the DataLoaders.
-        num_workers (int): The number of workers for the DataLoaders.
-        epoch_multiplier (int): The average number of images to sample from a single class-camera pair in each epoch.
-        train_split (float): The proportion of the dataset to include in the train split.
-        val_split (float): The proportion of the dataset to include in the validation split.
-        test_split (float): The proportion of the dataset to include in the test split.
-        
-    Returns:
-        Tuple[DataLoader, DataLoader, DataLoader]: A tuple containing the train, validation and test DataLoaders.
-    """
-    if not np.isclose(sum(splits), 1.0):
-        raise ValueError("❌ Train, validation and test splits must sum to 1.0.")
-    
-    train_paths_dict, val_paths_dict, test_paths_dict = get_splitted_paths_dict(
-        train_split=splits[0],
-        val_split=splits[1],
-        test_split=splits[2],
-    )
+class ContrastivePairsModule(pl.LightningDataModule):
+    def _get_paths_dict() -> Dict[str, Dict[str, List[str]]]:
+        """
+        Initialize the paths dictionary for the dataset.
+        The dictionary contains a 3-level structure:
+        - Level 1: Sky class, either clear, partial or overcast
+        - Level 2: Folder name, corresponding to the sky finder dataset camera identifier
+        - Level 3: List of image paths
 
-    train_dataset = SkyFinderDataset(
-        paths_dict=train_paths_dict,
-        epoch_multiplier=epoch_multipliers[0],
-    )
-    val_dataset = SkyFinderDataset(
-        paths_dict=val_paths_dict,
-        epoch_multiplier=epoch_multipliers[1],
-    )
-    test_dataset = SkyFinderDataset(
-        paths_dict=test_paths_dict,
-        epoch_multiplier=epoch_multipliers[2],
-    )
+        Returns:
+            Dict[str, Dict[str, List[str]]]: A dictionary with sky classes as keys and dictionaries of folder names and image paths as values.
+        """
+        paths_dict = {}
+        for sky_class in SKY_FINDER_SKY_CLASSES:
+            paths_dict[sky_class] = {}
+            sky_finder_class_images_path = f"{SKY_FINDER_IMAGES_PATH}/{sky_class}"
+            folder_names = os.listdir(sky_finder_class_images_path)
+            for folder_name in folder_names:
+                folder_path = os.path.join(sky_finder_class_images_path, folder_name)
+                if not os.path.isdir(folder_path):
+                    continue
 
-    train_dataloader = DataLoader(
-        dataset=train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    val_dataloader = DataLoader(
-        dataset=val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=False,
-    )
-    test_dataloader = DataLoader(
-        dataset=test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=False,
-    )
+                image_paths = get_paths_recursive(
+                    folder_path=folder_path,
+                    match_pattern="*.jpg",
+                    path_type="f",
+                    recursive=True,
+                )
+                paths_dict[sky_class][folder_name] = image_paths
 
-    print(
-        f"✅ Created DataLoaders with batch size {batch_size} and {num_workers} workers."
-    )
-    print(f"🟢 Train dataset size: {len(train_dataset)}.")
-    print(f"🟢 Validation dataset size: {len(val_dataset)}.")
-    print(f"🟢 Test dataset size: {len(test_dataset)}.")
+        return paths_dict
 
-    return train_dataloader, val_dataloader, test_dataloader
+    def _get_splitted_paths_dict(
+        train_split: float,
+        val_split: float,
+        test_split: float,
+    ) -> Tuple[
+        Dict[str, Dict[str, List[str]]],
+        Dict[str, Dict[str, List[str]]],
+        Dict[str, Dict[str, List[str]]],
+    ]:
+        """
+        Split the paths dictionary into train, validation and test sets.
+
+        Args:
+            train_split (float): The proportion of the dataset to include in the train split.
+            val_split (float): The proportion of the dataset to include in the validation split.
+            test_split (float): The proportion of the dataset to include in the test split.
+
+        Returns:
+            Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]]]: A tuple containing three dictionaries for train, validation and test splits.
+        """
+        if not np.isclose(train_split + val_split + test_split, 1.0):
+            raise ValueError("❌ Train, validation and test splits must sum to 1.0.")
+
+        # Get the paths dictionary
+        paths_dict = ContrastivePairsModule._get_paths_dict()
+
+        # Split the paths dictionary into train, validation and test sets
+        train_paths_dict = {}
+        val_paths_dict = {}
+        test_paths_dict = {}
+        for sky_class, folders in paths_dict.items():
+            train_paths_dict[sky_class] = {}
+            val_paths_dict[sky_class] = {}
+            test_paths_dict[sky_class] = {}
+
+            for folder_name, image_paths in folders.items():
+                shuffled_image_paths = image_paths.copy()
+                random.shuffle(shuffled_image_paths)
+
+                n_images = len(shuffled_image_paths)
+                n_train = int(n_images * train_split)
+                n_val = int(n_images * val_split)
+
+                train_paths_dict[sky_class][folder_name] = shuffled_image_paths[
+                    :n_train
+                ]
+                val_paths_dict[sky_class][folder_name] = shuffled_image_paths[
+                    n_train : n_train + n_val
+                ]
+                test_paths_dict[sky_class][folder_name] = shuffled_image_paths[
+                    n_train + n_val :
+                ]
+
+        return train_paths_dict, val_paths_dict, test_paths_dict
+
+    def __init__(
+        self,
+        batch_size: int,
+        with_transforms: bool,
+        n_workers: int,
+        seed: Optional[int] = None,
+    ) -> None:
+        super(ContrastivePairsModule, self).__init__()
+
+        self.batch_size = batch_size
+        self.with_transforms = with_transforms
+        self.n_workers = n_workers
+        self.seed = seed
+
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
+
+        train_paths_dict, val_paths_dict, test_paths_dict = (
+            ContrastivePairsModule._get_splitted_paths_dict(
+                train_split=SPLITS[0],
+                val_split=SPLITS[1],
+                test_split=SPLITS[2],
+            )
+        )
+        self.train_paths_dict = train_paths_dict
+        self.val_paths_dict = val_paths_dict
+        self.test_paths_dict = test_paths_dict
+
+    def setup(self, stage: Optional[str] = None):
+        if self.seed is not None:
+            print(f"🌱 Setting the seed to {self.seed} for generating dataloaders.")
+            set_seed(self.seed)
+
+        # Create datasets
+        if stage == "fit" or stage is None:
+            self.train_dataset = ContrastivePairsDataset(
+                paths_dict=self.train_paths_dict,
+                epoch_multiplier=SPLITS[0],
+                n_pairs=N_PAIRS,
+            )
+            self.val_dataset = ContrastivePairsDataset(
+                paths_dict=self.val_paths_dict,
+                epoch_multiplier=SPLITS[1],
+                n_pairs=N_PAIRS,
+            )
+        if stage == "test" or stage is None:
+            self.test_dataset = ContrastivePairsDataset(
+                paths_dict=self.test_paths_dict,
+                epoch_multiplier=SPLITS[2],
+                n_pairs=N_PAIRS,
+            )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.n_workers,
+            shuffle=True,
+            pin_memory=True,
+            drop_last=True,
+        )
+
+    def val_dataloader(self):
+        return SeededDataLoader(
+            self.val_dataset,
+            seed=self.seed,
+            batch_size=self.batch_size,
+            num_workers=self.n_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return SeededDataLoader(
+            self.test_dataset,
+            seed=self.seed,
+            batch_size=self.batch_size,
+            num_workers=self.n_workers,
+            shuffle=False,
+            pin_memory=True,
+        )
