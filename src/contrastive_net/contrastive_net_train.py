@@ -6,7 +6,7 @@ import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.utils.random import set_seed
 from src.models.contrastive_net import ContrastiveNet
@@ -27,6 +27,8 @@ from src.config import (
 def main() -> None:
     set_seed(SEED)
 
+    torch.set_float32_matmul_precision('high')
+
     # Get model
     model = ContrastiveNet(
         projection_dim=PROJECTION_DIM,
@@ -37,7 +39,7 @@ def main() -> None:
         learning_rate=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
         name="contrastive_net",
-        dataset_name="sky_finder",
+        dataset="sky_finder",
     )
 
     # Get trainer and train

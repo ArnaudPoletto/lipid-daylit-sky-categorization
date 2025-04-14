@@ -1,6 +1,15 @@
+import os
+import sys
 import torch
 import torch.nn as nn
 import lightning.pytorch as pl
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from src.losses.ntxent_loss import NTXentLoss
+from src.config import (
+    CRITERION_TEMPERATURE,
+)
 
 class LightningModel(pl.LightningModule):
     def __init__(
@@ -18,18 +27,49 @@ class LightningModel(pl.LightningModule):
         self.weight_decay = weight_decay
         self.name = name
         self.dataset = dataset
+        self.criterion = NTXentLoss(temperature=CRITERION_TEMPERATURE)
 
     def forward(self, batch):
         pass
     
     def training_step(self, batch, batch_idx):
-        pass
+        # Resize batch and forward pass
+        batch_size, n_pairs, two, n_channels, height, width = batch.shape
+        flattened_batch = batch.view(batch_size * n_pairs * two, n_channels, height, width)
+        flattened_outputs = self.model(flattened_batch)
+        outputs = flattened_outputs.view(batch_size, n_pairs, two, -1)
+
+        # Compute and log loss
+        train_loss = self.criterion(outputs)
+        self.log("train_loss", train_loss, on_step=True, on_epoch=True, sync_dist=True)
+        
+        return train_loss
     
     def validation_step(self, batch, batch_idx):
-        pass
+        # Resize batch and forward pass
+        batch_size, n_pairs, two, n_channels, height, width = batch.shape
+        flattened_batch = batch.view(batch_size * n_pairs * two, n_channels, height, width)
+        flattened_outputs = self.model(flattened_batch)
+        outputs = flattened_outputs.view(batch_size, n_pairs, two, -1)
+
+        # Compute and log loss
+        val_loss = self.criterion(outputs)
+        self.log("val_loss", val_loss, on_step=True, on_epoch=True, sync_dist=True)
+
+        return val_loss
     
     def test_step(self, batch, batch_idx):
-        pass
+        # Resize batch and forward pass
+        batch_size, n_pairs, two, n_channels, height, width = batch.shape
+        flattened_batch = batch.view(batch_size * n_pairs * two, n_channels, height, width)
+        flattened_outputs = self.model(flattened_batch)
+        outputs = flattened_outputs.view(batch_size, n_pairs, two, -1)
+
+        # Compute and log loss
+        test_loss = self.criterion(outputs)
+        self.log("test_loss", test_loss, on_step=True, on_epoch=True, sync_dist=True)
+
+        return test_loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         pass
