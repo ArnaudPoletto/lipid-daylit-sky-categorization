@@ -1,2 +1,8 @@
-data/*
 src/contrastive_net/wandb/
+notebooks/tsne_interactive_plot.html
+
+data/models
+data/TODO
+data/sky_finder/archives/
+data/sky_finder/extracted/
+data/sky_finder/images/
