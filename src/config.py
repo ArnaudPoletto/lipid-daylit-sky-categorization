@@ -22,7 +22,7 @@ EMBEDDINGS_PLOT_FILE_PATH = f"{GENERATED_PATH}embeddings_plot.png"
 SKY_FINDER_CAMERA_IDS = [65, 75, 162, 623, 858, 3297, 3395, 3396, 4232, 4584, 5020, 5021, 7371, 8733, 8953, 10066, 11160, 17218, 19388, 19834]
 SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]
 
-CHECKPOINT_PATH = f"{MODELS_PATH}contrastive_net/20250414-205233_contrastive_net/epoch=3-val_loss=1.08.ckpt"
+CHECKPOINT_PATH = f"{MODELS_PATH}contrastive_net/baseline.ckpt"
 
 PATCH_WIDTH = 640
 PATCH_HEIGHT = 360
