@@ -24,9 +24,11 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 
 2. **Negative Pairs**: All other augmented views from different base images in the batch serve as negative examples. The model learns to distinguish these from the positive pairs.
 
-<img src="generated/pair_generation.png" alt="Pair generation process" align="center" width="100%">
 <div align="center">
-  <em>Figure 1: Pair generation process for contrastive learning. Each original image is cropped to remove the ground region, inpainted and augmented to create two images, which are then used as positive pairs.</em>
+    <img src="generated/pair_generation.png" alt="Pair generation process" align="center" width="80%">
+    <div align="center">
+    <em>Figure 1: Pair generation process for contrastive learning. Each original image is cropped to remove the ground region, inpainted and augmented to create two images, which are then used as positive pairs.</em>
+    </div>
 </div>
 
 
