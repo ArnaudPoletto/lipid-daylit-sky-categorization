@@ -2,6 +2,8 @@
 
 The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
 
+
+
 ### 1.1 Sky Finder Dataset
 
 The Sky Finder dataset comprises high-resolution outdoor images captured across various locations, weather conditions, and times of day. Our preprocessing involves:
@@ -11,6 +13,8 @@ The Sky Finder dataset comprises high-resolution outdoor images captured across 
     - **Partial**: (6,378 images) Scenes with mixed cloud and clear sky regions.
     - **Overcast**: (8,777 images) Scenes with complete or near-complete cloud coverage.
 2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [3] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
+
+
 
 ### 1.2 Pair Generation for Contrastive Learning
 
@@ -28,6 +32,7 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 </div>
 
 
+
 ### 1.3 Training Objective
 
 We employ the Normalized Temperature-scaled Cross Entropy (NT-Xent) loss, which is formulated as:
@@ -43,6 +48,8 @@ Where:
 
 This loss function encourages the model to learn representations where similar samples are pulled together in the embedding space while dissimilar samples are pushed apart, resulting in a texture descriptor that effectively captures the distinctive characteristics of different sky conditions.
 
+
+
 ### 1.4 Training Procedure
 
 Our texture descriptor model was trained with the following hyperparameters and configuration:
@@ -57,11 +64,24 @@ Our texture descriptor model was trained with the following hyperparameters and 
 
 This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful texture representations while remaining trainable on consumer-grade hardware.
 
-### 1.5 Reproduction Procedure
+
+### 1.5 Results
+
+The trained texture descriptor model is evaluated on the Sky Finder dataset, and the results are visualized using t-SNE [4]. The resulting plot illustrates how the model effectively clusters similar sky conditions together in the embedding space.
+<div align="center">
+    <img src="generated/embeddings_plot.png" alt="Embeddings plot" align="center" width="80%">
+    <div align="center">
+    <em>Figure 2: Embeddings plot of the trained model on the Sky Finder dataset. The plot illustrates how the model effectively clusters similar sky conditions together in the embedding space.</em>
+    </div>
+</div>
+
+
+
+### 1.6 Reproduction Procedure
 
 Follow these steps to reproduce our texture descriptor results by generating the dataset and training the model.
 
-#### 1.5.1 Sky Finder Dataset Generation
+#### 1.6.1 Sky Finder Dataset Generation
 
 To prepare the dataset for training, execute the following commands which will download and organize the Sky Finder images according to our classification schema:
 
@@ -111,3 +131,5 @@ The generated plot will be saved in the [generated/embeddings_plot.png](generate
 [2] He et al., "Deep Residual Learning for Image Recognition," IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016.
 
 [3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
+
+[4] Van der Maaten, L., and Hinton, G., "Visualizing Data using t-SNE," Journal of Machine Learning Research, vol. 9, pp. 2579–2605, 2008.
