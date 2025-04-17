@@ -1,7 +1,3 @@
-## Introduction
-
-TODO
-
 ## 1. Texture Descriptor
 
 The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
