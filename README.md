@@ -10,10 +10,10 @@ The texture descriptor leverages the Sky Finder dataset [CITE], which contains a
 
 The Sky Finder dataset comprises high-resolution outdoor images captured across various locations, weather conditions, and times of day. Our preprocessing involves:
 
-1. **Image Classification**: We manually categorized the 20 most representative scenes in the dataset into three classes based on sky visibility, yielding over 21,000 images across the three classes:
-    - **Clear**: Scenes with predominantly visible blue sky and minimal cloud coverage
-    - **Partial**: Scenes with mixed cloud and clear sky regions
-    - **Overcast**: Scenes with complete or near-complete cloud coverage
+1. **Image Classification**: We manually categorized the 20 most representative scenes in the dataset into three classes based on sky visibility, yielding 21,490 images across the three classes:
+    - **Clear**: (6,335 images) Scenes with predominantly visible blue sky and minimal cloud coverage.
+    - **Partial**: (6,378 images) Scenes with mixed cloud and clear sky regions.
+    - **Overcast**: (8,777 images) Scenes with complete or near-complete cloud coverage.
 2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [CITE] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
 
 ### 1.2 Pair Generation for Contrastive Learning
@@ -23,6 +23,12 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 1. **Positive Pairs**: For each processed image in the dataset, we generate two different augmented views of the same base image. These views are created through a series of transformations aiming to keep the core content of the image intact while introducing variability.
 
 2. **Negative Pairs**: All other augmented views from different base images in the batch serve as negative examples. The model learns to distinguish these from the positive pairs.
+
+<img src="generated/pair_generation.png" alt="Pair generation process" align="center" width="100%">
+<div align="center">
+  <em>Figure 1: Pair generation process for contrastive learning. Each original image is cropped to remove the ground region, inpainted and augmented to create two images, which are then used as positive pairs.</em>
+</div>
+
 
 ### 1.3 Training Objective
 
@@ -68,3 +74,6 @@ Parameters:
 - -w, --max-workers: (Optional, default is 3) Specifies the maximum number of concurrent workers for downloading images. Higher values speed up the download process but require more system resources.
 - -f, --force: (Optional, default is false) Forces the download and generation of the dataset even if it already exists locally, ensuring you have the latest version.
 - -r, --remove-data: (Optional, default is false) Automatically removes the downloaded archive files and extracted files after successfully generating the processed dataset to save disk space.
+
+#### 1.5.2 Training the Texture Descriptor
+TODO
