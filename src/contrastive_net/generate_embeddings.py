@@ -3,11 +3,11 @@ import sys
 import cv2
 import json
 import torch
+import argparse
 import numpy as np
 from tqdm import tqdm
 from typing import Tuple
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.datasets.sky_finder import (
@@ -29,16 +29,21 @@ from src.config import (
 )
 
 
-def get_model() -> ContrastiveNet:
+def get_model(
+    checkpoint_path: str
+) -> ContrastiveNet:
     """
     Get the ContrastiveNet model from the checkpoint.
+
+    Args:
+        checkpoint_path (str): Path to the model checkpoint.
 
     Returns:
         ContrastiveNet: ContrastiveNet model.
     """
     model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
     lightning_model = LightningModel.load_from_checkpoint(
-        CHECKPOINT_PATH,
+        checkpoint_path,
         model=model,
         learning_rate=0,
         weight_decay=0,
@@ -124,9 +129,28 @@ def get_embedding(
     return embedding
 
 
+def parse_args() -> None:
+    """
+    Parse command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Generate embeddings for images.")
+
+    parser.add_argument(
+        "-c",
+        "--checkpoint-path",
+        type=str,
+        default=CHECKPOINT_PATH,
+        help="Path to the model checkpoint.",
+    )
+
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
+    checkpoint_path = args.checkpoint_path
+
     # Get model
-    model = get_model()
+    model = get_model(checkpoint_path=checkpoint_path)
 
     # Get image file paths
     image_file_paths = get_paths_recursive(

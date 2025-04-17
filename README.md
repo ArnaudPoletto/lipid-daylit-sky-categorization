@@ -87,7 +87,7 @@ cd src/contrastive_net
 python contrastive_net_train.py
 ```
 
-Model weights will be saved in the `data/models/contrastive_net` directory.
+Model weights will be saved in the [data/models/contrastive_net](data/models/contrastive_net) directory.
 
 #### 1.5.3 Generating Sky Finder Embeddings
 
@@ -95,13 +95,15 @@ To generate the embeddings for the Sky Finder dataset, execute the following com
 
 ```bash
 cd src/contrastive_net
-python generate_embeddings.py
+python generate_embeddings.py [-c <checkpoint_path>]
 ```
 
-The generated embeddings will be saved in the `generated/embeddings.json` file. To plot the embeddings and visualize the results, execute the following commands:
+The generated embeddings will be saved in the [generated/embeddings.json](generated/embeddings.json) file. Do not forget to use your own checkpoint path using the argument `-c`, `--checkpoint-path` if you previously trained the model and want to use it instead of the default one.
+
+To plot the embeddings and visualize the results, execute the following commands:
 
 ```bash
 cd src/contrastive_net
 python plot_embeddings.py
 ```
-The generated plot will be saved in the `generated/embeddings_plot.png` file.
+The generated plot will be saved in the [generated/embeddings_plot.png](generated/embeddings_plot.png) file.

@@ -264,7 +264,7 @@ def parse_args() -> None:
     Parse command line arguments.
     """
 
-    parser = argparse.ArgumentParser(description="Download sky finder archives")
+    parser = argparse.ArgumentParser(description="Download sky finder archives.")
 
     parser.add_argument(
         "-w",
