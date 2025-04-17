@@ -4,7 +4,7 @@ TODO
 
 ## 1. Texture Descriptor
 
-The texture descriptor leverages the Sky Finder dataset [CITE], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [CITE] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
+The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
 
 ### 1.1 Sky Finder Dataset
 
@@ -14,7 +14,7 @@ The Sky Finder dataset comprises high-resolution outdoor images captured across 
     - **Clear**: (6,335 images) Scenes with predominantly visible blue sky and minimal cloud coverage.
     - **Partial**: (6,378 images) Scenes with mixed cloud and clear sky regions.
     - **Overcast**: (8,777 images) Scenes with complete or near-complete cloud coverage.
-2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [CITE] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
+2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [3] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
 
 ### 1.2 Pair Generation for Contrastive Learning
 
@@ -107,3 +107,11 @@ cd src/contrastive_net
 python plot_embeddings.py
 ```
 The generated plot will be saved in the [generated/embeddings_plot.png](generated/embeddings_plot.png) file.
+
+## References
+
+[1] Mihail et al., "Sky Finder: A Segmentation Benchmark for Sky Regions in the Wild," IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2016.
+
+[2] He et al., "Deep Residual Learning for Image Recognition," IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016.
+
+[3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
