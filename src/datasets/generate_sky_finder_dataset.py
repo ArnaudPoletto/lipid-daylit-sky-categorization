@@ -268,7 +268,7 @@ def parse_args() -> None:
 
     parser.add_argument(
         "-w",
-        "--workers",
+        "--max-workers",
         type=int,
         default=3,
         help="Number of concurrent download workers (default: 3)",
@@ -293,12 +293,11 @@ def parse_args() -> None:
 
 def main() -> None:
     args = parse_args()
-    max_workers = args.workers
+    max_workers = args.max_workers
     force = args.force
     remove_archives = args.remove_data
 
     download_archives(max_workers=max_workers, force=force)
-    download_masks(force=force)
     extract_archives(force=force)
     classify_extracted_images(force=force)
 
