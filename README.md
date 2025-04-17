@@ -4,7 +4,7 @@ TODO
 
 ## 1. Texture Descriptor
 
-The texture descriptor leverages the Sky Finder dataset [CITE], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
+The texture descriptor leverages the Sky Finder dataset [CITE], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [CITE] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
 
 ### 1.1 Sky Finder Dataset
 
@@ -33,16 +33,31 @@ $$L = -\log\frac{\exp(\text{sim}(z_i, z_j)/\tau)}{\sum_{k=1}^{2N}\mathbf{1}_{[k 
 Where:
 - $z_i$ and $z_j$ are normalized embeddings of two augmented views of the same image.
 - $\text{sim}(u, v)$ denotes the cosine similarity between vectors $u$ and $v$.
-- $\tau$ is a temperature parameter (default: 0.5) that controls the concentration level of the distribution.
+- $\tau$ is a temperature parameter that controls the concentration level of the distribution.
+- $N$ is the number of image pairs in the current batch.
 - $\mathbf{1}_{[k \neq i]}$ is an indicator function that equals 1 when $k \neq i$.
 
 This loss function encourages the model to learn representations where similar samples are pulled together in the embedding space while dissimilar samples are pushed apart, resulting in a texture descriptor that effectively captures the distinctive characteristics of different sky conditions.
 
-### 1.4 Reproduction
+### 1.4 Training Procedure
+
+Our texture descriptor model was trained with the following hyperparameters and configuration:
+
+- **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
+- **Embedding Dimension**: 16 (latent space dimension at the end of the MLP head).
+- **Batch Configuration**: 2 batches with 3 pairs per batch ($N=3$).
+- **Training Duration**: 4 epochs.
+- **Temperature Parameter**: 0.5 for the NT-Xent loss.
+- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
+- **Hardware**: Single NVIDIA RTX 3080 GPU with 10GB of memory.
+
+This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful texture representations while remaining trainable on consumer-grade hardware.
+
+### 1.5 Reproduction
 
 Follow these steps to reproduce our texture descriptor results by generating the dataset and training the model.
 
-#### 1.1.1 Sky Finder Dataset
+#### 1.5.1 Sky Finder Dataset
 
 To prepare the dataset for training, execute the following command which will download and organize the Sky Finder images according to our classification schema:
 
