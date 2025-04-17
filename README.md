@@ -61,21 +61,47 @@ Our texture descriptor model was trained with the following hyperparameters and 
 
 This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful texture representations while remaining trainable on consumer-grade hardware.
 
-### 1.5 Reproduction
+### 1.5 Reproduction Procedure
 
 Follow these steps to reproduce our texture descriptor results by generating the dataset and training the model.
 
-#### 1.5.1 Sky Finder Dataset
+#### 1.5.1 Sky Finder Dataset Generation
 
-To prepare the dataset for training, execute the following command which will download and organize the Sky Finder images according to our classification schema:
+To prepare the dataset for training, execute the following commands which will download and organize the Sky Finder images according to our classification schema:
 
 ```bash
-python src/datasets/generate_sky_finder_dataset.py [-w <max-workers>] [-f] [-r]
+cd src/datasets
+python generate_sky_finder_dataset.py [-w <max-workers>] [-f] [-r]
 ```
 Parameters:
-- -w, --max-workers: (Optional, default is 3) Specifies the maximum number of concurrent workers for downloading images. Higher values speed up the download process but require more system resources.
-- -f, --force: (Optional, default is false) Forces the download and generation of the dataset even if it already exists locally, ensuring you have the latest version.
-- -r, --remove-data: (Optional, default is false) Automatically removes the downloaded archive files and extracted files after successfully generating the processed dataset to save disk space.
+- `-w`, `--max-workers`: (Optional, default is 3) Specifies the maximum number of concurrent workers for downloading images. Higher values speed up the download process but require more system resources.
+- `-f`, `--force`: (Optional, default is false) Forces the download and generation of the dataset even if it already exists locally, ensuring you have the latest version.
+- `-r`, `--remove-data`: (Optional, default is false) Automatically removes the downloaded archive files and extracted files after successfully generating the processed dataset to save disk space.
 
 #### 1.5.2 Training the Texture Descriptor
-TODO
+
+To train the texture descriptor model, execute the following commands:
+
+```bash
+cd src/contrastive_net
+python contrastive_net_train.py
+```
+
+Model weights will be saved in the `data/models/contrastive_net` directory.
+
+#### 1.5.3 Generating Sky Finder Embeddings
+
+To generate the embeddings for the Sky Finder dataset, execute the following commands:
+
+```bash
+cd src/contrastive_net
+python generate_embeddings.py
+```
+
+The generated embeddings will be saved in the `generated/embeddings.json` file. To plot the embeddings and visualize the results, execute the following commands:
+
+```bash
+cd src/contrastive_net
+python plot_embeddings.py
+```
+The generated plot will be saved in the `generated/embeddings_plot.png` file.

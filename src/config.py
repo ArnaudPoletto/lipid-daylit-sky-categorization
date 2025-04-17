@@ -6,6 +6,7 @@ SEED = 0
 
 GLOBAL_PATH = str(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) + "/"
 DATA_PATH = f"{GLOBAL_PATH}data/"
+GENERATED_PATH = f"{GLOBAL_PATH}generated/"
 MODELS_PATH = f"{DATA_PATH}models/"
 
 SKY_FINDER_PATH = f"{DATA_PATH}sky_finder/"
@@ -14,6 +15,8 @@ SKY_FINDER_MASKS_PATH = f"{SKY_FINDER_PATH}masks/"
 SKY_FINDER_ARCHIVES_PATH = f"{SKY_FINDER_PATH}archives/"
 SKY_FINDER_EXTRACTED_PATH = f"{SKY_FINDER_PATH}extracted/"
 KSY_FINDER_CATEGORY_MAPPING_FILE_PATH = f"{SKY_FINDER_PATH}category_mapping.json"
+
+EMBEDDINGS_FILE_PATH = f"{GENERATED_PATH}embeddings.json"
 
 SKY_FINDER_CAMERA_IDS = [65, 75, 162, 623, 858, 3297, 3395, 3396, 4232, 4584, 5020, 5021, 7371, 8733, 8953, 10066, 11160, 17218, 19388, 19834]
 SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]

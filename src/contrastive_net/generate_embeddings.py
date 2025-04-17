@@ -20,11 +20,11 @@ from src.utils.lightning_model import LightningModel
 from src.utils.file import get_paths_recursive
 from src.config import (
     SKY_FINDER_IMAGES_PATH,
+    EMBEDDINGS_FILE_PATH,
     CHECKPOINT_PATH,
     PROJECTION_DIM,
     PATCH_WIDTH,
     PATCH_HEIGHT,
-    DATA_PATH,
     DEVICE,
 )
 
@@ -165,10 +165,9 @@ def main():
         embeddings[image_file_path] = {"sky_type": sky_type, "embedding": embedding}
 
     # Save embeddings
-    output_file_path = f"{DATA_PATH}/embeddings.json"
-    with open(output_file_path, "w") as f:
+    with open(EMBEDDINGS_FILE_PATH, "w") as f:
         json.dump(embeddings, f, indent=4)
-    print(f"✅ Saved embeddings to {os.path.abspath(output_file_path)}.")
+    print(f"✅ Saved embeddings to {os.path.abspath(EMBEDDINGS_FILE_PATH)}.")
 
 
 if __name__ == "__main__":
