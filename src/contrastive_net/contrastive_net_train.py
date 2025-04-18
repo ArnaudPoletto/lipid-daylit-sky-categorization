@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 from src.utils.random import set_seed
 from src.models.contrastive_net import ContrastiveNet
-from src.utils.lightning_model import LightningModel
+from src.lightning_models.contrastive_lightning_model import ContrastiveLightningModel
 from src.datasets.contrastive_pairs_dataset import ContrastivePairsModule
 from src.config import (
     EVALUATION_STEPS,
@@ -32,7 +32,7 @@ def main() -> None:
 
     # Get model
     model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
-    lightning_model = LightningModel(
+    lightning_model = ContrastiveLightningModel(
         model=model,
         learning_rate=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,

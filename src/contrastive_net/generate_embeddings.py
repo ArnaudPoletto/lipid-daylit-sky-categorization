@@ -16,7 +16,7 @@ from src.datasets.sky_finder import (
     get_sky_finder_paths_dict,
 )
 from src.models.contrastive_net import ContrastiveNet
-from src.utils.lightning_model import LightningModel
+from src.lightning_models.contrastive_lightning_model import ContrastiveLightningModel
 from src.utils.file import get_paths_recursive
 from src.config import (
     SKY_FINDER_IMAGES_PATH,
@@ -40,7 +40,7 @@ def get_model(checkpoint_path: str) -> ContrastiveNet:
         ContrastiveNet: ContrastiveNet model.
     """
     model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
-    lightning_model = LightningModel.load_from_checkpoint(
+    lightning_model = ContrastiveLightningModel.load_from_checkpoint(
         checkpoint_path,
         model=model,
         learning_rate=0,

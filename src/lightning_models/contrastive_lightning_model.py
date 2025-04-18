@@ -13,7 +13,7 @@ from src.config import (
 )
 
 
-class LightningModel(pl.LightningModule):
+class ContrastiveLightningModel(pl.LightningModule):
     """
     Lightning model for training and evaluating a neural network model.
     """
@@ -27,7 +27,7 @@ class LightningModel(pl.LightningModule):
         dataset: str,
     ) -> None:
         """
-        Initialize the LightningModel.
+        Initialize the ContrastiveLightningModel.
 
         Args:
             model (nn.Module): The neural network model to be trained.
@@ -36,7 +36,7 @@ class LightningModel(pl.LightningModule):
             name (str): Name of the model.
             dataset (str): Name of the dataset.
         """
-        super(LightningModel, self).__init__()
+        super(ContrastiveLightningModel, self).__init__()
 
         self.model = model
         self.learning_rate = learning_rate
