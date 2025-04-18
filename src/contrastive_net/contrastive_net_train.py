@@ -13,16 +13,20 @@ from src.models.contrastive_net import ContrastiveNet
 from src.lightning_models.contrastive_lightning_model import ContrastiveLightningModel
 from src.datasets.contrastive_pairs_dataset import ContrastivePairsModule
 from src.config import (
-    EVALUATION_STEPS,
     PROJECTION_DIM,
-    LEARNING_RATE,
-    WEIGHT_DECAY,
     MODELS_PATH,
-    BATCH_SIZE,
-    N_WORKERS,
-    N_EPOCHS,
     SEED,
 )
+
+N_EPOCHS = 4
+BATCH_SIZE = 2
+N_WORKERS = 8
+EVALUATION_STEPS = 500
+LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 1e-4
+SPLITS = (0.8, 0.1, 0.1)
+EPOCH_MULTIPLIERS = (100, 10, 10)
+CRITERION_TEMPERATURE = 0.5
 
 
 def main() -> None:

@@ -3,12 +3,14 @@ import sys
 import torch
 
 SEED = 0
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 GLOBAL_PATH = str(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) + "/"
 DATA_PATH = f"{GLOBAL_PATH}data/"
 GENERATED_PATH = f"{GLOBAL_PATH}generated/"
 MODELS_PATH = f"{DATA_PATH}models/"
 
+# Texture descriptor
 SKY_FINDER_PATH = f"{DATA_PATH}sky_finder/"
 SKY_FINDER_IMAGES_PATH = f"{SKY_FINDER_PATH}images/"
 SKY_FINDER_MASKS_PATH = f"{SKY_FINDER_PATH}masks/"
@@ -22,21 +24,22 @@ EMBEDDINGS_PLOT_FILE_PATH = f"{GENERATED_PATH}embeddings_plot.png"
 SKY_FINDER_CAMERA_IDS = [65, 75, 162, 623, 858, 3297, 3395, 3396, 4232, 4584, 5020, 5021, 7371, 8733, 8953, 10066, 11160, 17218, 19388, 19834]
 SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]
 
-CHECKPOINT_PATH = f"{MODELS_PATH}contrastive_net/baseline.ckpt"
+CONTRASTIVE_CHECKPOINT_PATH = f"{MODELS_PATH}contrastive_net/baseline.ckpt"
 
-PATCH_WIDTH = 640
-PATCH_HEIGHT = 360
+SKY_FINDER_WIDTH = 640
+SKY_FINDER_HEIGHT = 360
 N_PAIRS = 3
 PROJECTION_DIM = 16
 
-N_EPOCHS = 10
-BATCH_SIZE = 2
-N_WORKERS = 8
-EVALUATION_STEPS = 500
-LEARNING_RATE = 1e-4
-WEIGHT_DECAY = 1e-4
 SPLITS = (0.8, 0.1, 0.1)
 EPOCH_MULTIPLIERS = (100, 10, 10)
 CRITERION_TEMPERATURE = 0.5
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Cloud coverage estimator
+SKY_COVER_PATH = f"{DATA_PATH}sky_cover/"
+
+SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]
+
+SKY_COVER_WIDTH = 640
+SKY_COVER_HEIGHT = 360
+SKY_COVER_MAX_GROUND_TRUTH_VALUE = 224

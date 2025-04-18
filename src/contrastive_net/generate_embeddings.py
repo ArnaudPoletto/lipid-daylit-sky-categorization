@@ -21,10 +21,10 @@ from src.utils.file import get_paths_recursive
 from src.config import (
     SKY_FINDER_IMAGES_PATH,
     EMBEDDINGS_FILE_PATH,
-    CHECKPOINT_PATH,
+    CONTRASTIVE_CHECKPOINT_PATH,
     PROJECTION_DIM,
-    PATCH_WIDTH,
-    PATCH_HEIGHT,
+    SKY_FINDER_WIDTH,
+    SKY_FINDER_HEIGHT,
     DEVICE,
 )
 
@@ -92,7 +92,7 @@ def get_image(
     image = cv2.inpaint(image, inpaint_mask, 3, cv2.INPAINT_TELEA)
 
     # Resize and normalize image
-    image = cv2.resize(image, (PATCH_WIDTH, PATCH_HEIGHT))
+    image = cv2.resize(image, (SKY_FINDER_WIDTH, SKY_FINDER_HEIGHT))
     image = image / 255.0
     image = (image - mean) / std
 
@@ -137,7 +137,7 @@ def parse_args() -> None:
         "-c",
         "--checkpoint-path",
         type=str,
-        default=CHECKPOINT_PATH,
+        default=CONTRASTIVE_CHECKPOINT_PATH,
         help="Path to the model checkpoint.",
     )
 

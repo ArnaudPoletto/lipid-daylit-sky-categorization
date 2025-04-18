@@ -22,8 +22,8 @@ from src.datasets.sky_finder import (
 )
 from src.config import (
     EPOCH_MULTIPLIERS,
-    PATCH_WIDTH,
-    PATCH_HEIGHT,
+    SKY_FINDER_WIDTH,
+    SKY_FINDER_HEIGHT,
     N_PAIRS,
     SPLITS,
 )
@@ -31,13 +31,13 @@ from src.config import (
 
 class ContrastivePairsDataset(Dataset):
     """
-    Contrastive Pairs Dataset for training contrastive learning models.
+    Contrastive pairs dataset for training contrastive learning models.
     """
 
     def _create_balanced_indices(
         self,
         epoch_multiplier: int,
-    ) -> Tuple[list, list, int]:
+    ) -> Tuple[List[Tuple[str, str, str]], List[float], int]:
         """
         Create a balanced dataset with weights for each image based on the class and camera ID.
 
@@ -45,9 +45,9 @@ class ContrastivePairsDataset(Dataset):
             epoch_multiplier (int): The average number of images to sample from a single class-camera pair in each epoch.
 
         Returns:
-            all_images (list): A list of tuples containing (sky_class, camera_id, image_path).
-            weights (list): A list of weights for each image.
-            epoch_size (int): The size of the epoch.
+            List[Tuple[str, str, str]]: A list of tuples containing the class, camera ID, and image path.
+            List[float]: A list of weights for each image.
+            int: The size of the epoch.
         """
         # Get all sky classes and their camera IDs
         sky_classes = list(self.paths_dict.keys())
@@ -113,6 +113,8 @@ class ContrastivePairsDataset(Dataset):
             epoch_multiplier (int): The average number of images to sample from a single class-camera pair in each epoch.
             n_pairs (int): The number of pairs to sample for each image.
         """
+        super(ContrastivePairsDataset, self).__init__()
+        
         self.paths_dict = paths_dict
         self.epoch_multiplier = epoch_multiplier
         self.n_pairs = n_pairs
@@ -159,7 +161,7 @@ class ContrastivePairsDataset(Dataset):
 
     def _get_patch(
         image: np.ndarray,
-        patch_ratio: float = PATCH_WIDTH / PATCH_HEIGHT,
+        patch_ratio: float = SKY_FINDER_WIDTH / SKY_FINDER_HEIGHT,
     ) -> np.ndarray:
         """
         Get a patch from the image with random transformations.
@@ -181,7 +183,7 @@ class ContrastivePairsDataset(Dataset):
                     p=1.0,
                     border_mode=cv2.BORDER_REFLECT_101,
                 ),
-                A.Resize(height=PATCH_HEIGHT, width=PATCH_WIDTH, p=1.0),
+                A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
                 A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
                 A.CLAHE(clip_limit=(0, 1), p=0.5),
                 A.ColorJitter(
@@ -263,7 +265,7 @@ class ContrastivePairsDataset(Dataset):
 
         return filled_image
 
-    def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int) -> torch.Tensor:
         """
         Get a sample from the dataset.
 
@@ -271,7 +273,7 @@ class ContrastivePairsDataset(Dataset):
             idx (int): The index of the sample.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing the anchor patch, positive patch, and negative patch.
+            torch.Tensor: The processed image patch.
         """
         # Get n_pairs image indexes, without replacement
         sampled_idx = np.random.choice(
