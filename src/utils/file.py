@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List
 
+
 def get_paths_recursive(
     folder_path: str,
     match_pattern: str,

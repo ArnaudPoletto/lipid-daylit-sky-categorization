@@ -29,9 +29,7 @@ from src.config import (
 )
 
 
-def get_model(
-    checkpoint_path: str
-) -> ContrastiveNet:
+def get_model(checkpoint_path: str) -> ContrastiveNet:
     """
     Get the ContrastiveNet model from the checkpoint.
 
@@ -144,6 +142,7 @@ def parse_args() -> None:
     )
 
     return parser.parse_args()
+
 
 def main():
     args = parse_args()

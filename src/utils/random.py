@@ -20,10 +20,12 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
+
 class SeededDataLoader(DataLoader):
     """
     A DataLoader that sets a random seed for each iteration.
     """
+
     def __init__(self, dataset: Dataset, seed: int = 0, **kwargs) -> None:
         """
         Initialize the SeededDataLoader.
@@ -35,11 +37,11 @@ class SeededDataLoader(DataLoader):
         """
         super().__init__(dataset, **kwargs)
         self.seed = seed
-    
+
     def __iter__(self) -> Iterator[Any]:
         """
         Create an iterator for the DataLoader that sets a random seed for each iteration.
-        
+
         Returns:
             Iterator[Any]: An iterator that yields batches of data.
         """
@@ -47,18 +49,20 @@ class SeededDataLoader(DataLoader):
         orig_random_state = random.getstate()
         orig_np_state = np.random.get_state()
         orig_torch_state = torch.get_rng_state()
-        orig_cuda_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
-        
+        orig_cuda_state = (
+            torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+        )
+
         # Set seed for this iteration
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(self.seed)
-        
+
         # Get iterator from parent class
         iterator = super().__iter__()
-        
+
         # Yield all elements
         try:
             yield from iterator

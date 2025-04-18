@@ -173,18 +173,20 @@ def extract_archives(
 
 
 def classify_extracted_images(
-        force: bool,
+    force: bool,
 ) -> None:
     """
     Classify the extracted images into categories based on the category mapping.
-    
+
     Args:
         force (bool): Whether to force re-classification of images.
     """
     print("▶️  Classifying extracted images...")
 
     if force:
-        print("⚠️  Force re-classification enabled. Deleting existing classified images...")
+        print(
+            "⚠️  Force re-classification enabled. Deleting existing classified images..."
+        )
         for category_dir in glob.glob(os.path.join(SKY_FINDER_IMAGES_PATH, "*")):
             if os.path.isdir(category_dir):
                 shutil.rmtree(category_dir)
@@ -242,6 +244,7 @@ def classify_extracted_images(
                 continue
 
     print("✅ All images classified.")
+
 
 def remove_data() -> None:
     """

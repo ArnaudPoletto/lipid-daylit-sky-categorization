@@ -24,16 +24,14 @@ from src.config import (
     SEED,
 )
 
+
 def main() -> None:
     set_seed(SEED)
 
-    torch.set_float32_matmul_precision('high')
+    torch.set_float32_matmul_precision("high")
 
     # Get model
-    model = ContrastiveNet(
-        projection_dim=PROJECTION_DIM,
-        pretrained=True
-    )
+    model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
     lightning_model = LightningModel(
         model=model,
         learning_rate=LEARNING_RATE,
@@ -82,6 +80,7 @@ def main() -> None:
         model=lightning_model,
         datamodule=data_module,
     )
+
 
 if __name__ == "__main__":
     main()

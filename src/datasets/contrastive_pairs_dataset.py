@@ -21,8 +21,6 @@ from src.datasets.sky_finder import (
     get_sky_finder_paths_dict,
 )
 from src.config import (
-    SKY_FINDER_IMAGES_PATH,
-    SKY_FINDER_SKY_CLASSES,
     EPOCH_MULTIPLIERS,
     PATCH_WIDTH,
     PATCH_HEIGHT,
@@ -212,7 +210,9 @@ class ContrastivePairsDataset(Dataset):
                     var_limit=(10.0, 50.0),
                     p=0.5,
                 ),
-                MeanPatches(num_patches=(2, 5), patch_size=(50, 150), use_image_mean=True, p=0.7),
+                MeanPatches(
+                    num_patches=(2, 5), patch_size=(50, 150), use_image_mean=True, p=0.7
+                ),
                 A.Normalize(
                     mean=(0.485, 0.456, 0.406),
                     std=(0.229, 0.224, 0.225),
@@ -299,6 +299,10 @@ class ContrastivePairsDataset(Dataset):
 
 
 class ContrastivePairsModule(pl.LightningDataModule):
+    """
+    Contrastive Pairs Data Module for training contrastive learning models.
+    """
+
     def _get_splitted_paths_dict(
         train_split: float,
         val_split: float,
@@ -360,6 +364,14 @@ class ContrastivePairsModule(pl.LightningDataModule):
         n_workers: int,
         seed: Optional[int] = None,
     ) -> None:
+        """
+        Initialize the ContrastivePairsModule class.
+
+        Args:
+            batch_size (int): The batch size for the dataloaders.
+            n_workers (int): The number of workers for the dataloaders.
+            seed (Optional[int]): The seed for random number generation.
+        """
         super(ContrastivePairsModule, self).__init__()
 
         self.batch_size = batch_size
@@ -381,7 +393,13 @@ class ContrastivePairsModule(pl.LightningDataModule):
         self.val_paths_dict = val_paths_dict
         self.test_paths_dict = test_paths_dict
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Setup the datasets for training, validation and testing.
+
+        Args:
+            stage (Optional[str]): The stage of the training process. Can be "fit", "validate", "test" or None.
+        """
         if self.seed is not None:
             print(f"🌱 Setting the seed to {self.seed} for generating dataloaders.")
             set_seed(self.seed)
@@ -405,7 +423,13 @@ class ContrastivePairsModule(pl.LightningDataModule):
                 n_pairs=N_PAIRS,
             )
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
+        """
+        Returns the training dataloader.
+
+        Returns:
+            DataLoader: The training dataloader.
+        """
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -415,7 +439,13 @@ class ContrastivePairsModule(pl.LightningDataModule):
             drop_last=True,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
+        """
+        Returns the validation dataloader.
+
+        Returns:
+            DataLoader: The validation dataloader.
+        """
         return SeededDataLoader(
             self.val_dataset,
             seed=self.seed,
@@ -426,7 +456,13 @@ class ContrastivePairsModule(pl.LightningDataModule):
             pin_memory=True,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
+        """
+        Returns the test dataloader.
+
+        Returns:
+            DataLoader: The test dataloader.
+        """
         return SeededDataLoader(
             self.test_dataset,
             seed=self.seed,
