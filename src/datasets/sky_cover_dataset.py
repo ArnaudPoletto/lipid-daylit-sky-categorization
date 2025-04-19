@@ -16,11 +16,10 @@ from src.utils.random import set_seed
 from src.utils.random import SeededDataLoader
 from src.utils.file import get_paths_recursive
 from src.config import (
-    SPLITS,
+    SKY_COVER_SPLITS,
     SKY_COVER_PATH,
     SKY_COVER_WIDTH,
     SKY_COVER_HEIGHT,
-    SKY_FINDER_SKY_CLASSES,
     SKY_COVER_MAX_GROUND_TRUTH_VALUE,
 )
 
@@ -70,40 +69,58 @@ class SkyCoverDataset(Dataset):
     def __init__(
         self,
         paths: List[str],
+        use_augmentations: bool,
     ) -> None:
         super(SkyCoverDataset, self).__init__()
 
         self.paths = paths
+        self.use_augmentations = use_augmentations
 
         self.all_images, self.all_ground_truths = self._get_data(paths)
 
-        self.image_transform = A.Compose(
-            [
-                A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
-                A.CLAHE(clip_limit=(0, 1), p=0.5),
-                A.ColorJitter(
-                    brightness=0.2,
-                    contrast=0.2,
-                    saturation=0.2,
-                    hue=0.1,
-                    p=1.0,
-                ),
-                A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5),
-                A.GaussNoise(
-                    var_limit=(10.0, 50.0),
-                    p=0.5,
-                ),
-                A.Normalize(
-                    mean=(0.485, 0.456, 0.406),
-                    std=(0.229, 0.224, 0.225),
-                    max_pixel_value=255.0,
-                    p=1.0,
-                ),
-                ToTensorV2(
-                    p=1.0,
-                ),
-            ]
-        )
+        if use_augmentations:
+            self.image_transform = A.Compose(
+                [
+                    A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
+                    A.CLAHE(clip_limit=(0, 1), p=0.5),
+                    A.ColorJitter(
+                        brightness=0.2,
+                        contrast=0.2,
+                        saturation=0.2,
+                        hue=0.1,
+                        p=1.0,
+                    ),
+                    A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5),
+                    A.GaussNoise(
+                        var_limit=(10.0, 50.0),
+                        p=0.5,
+                    ),
+                    A.Normalize(
+                        mean=(0.485, 0.456, 0.406),
+                        std=(0.229, 0.224, 0.225),
+                        max_pixel_value=255.0,
+                        p=1.0,
+                    ),
+                    ToTensorV2(
+                        p=1.0,
+                    ),
+                ]
+            )
+        else:
+            self.image_transform = A.Compose(
+                [
+                    A.Normalize(
+                        mean=(0.485, 0.456, 0.406),
+                        std=(0.229, 0.224, 0.225),
+                        max_pixel_value=255.0,
+                        p=1.0,
+                    ),
+                    ToTensorV2(
+                        p=1.0,
+                    ),
+                ]
+            )
+
         self.ground_truth_transform = A.Compose(
             [
                 ToTensorV2(
@@ -111,19 +128,27 @@ class SkyCoverDataset(Dataset):
                 ),
             ]
         )
-        self.transform = A.Compose(
-            [
-                A.HorizontalFlip(
-                    p=0.5,
-                ),
-                A.Rotate(
-                    limit=(-20, 20),
-                    p=1.0,
-                    border_mode=cv2.BORDER_REFLECT_101,
-                ),
-                A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
-            ]
-        )
+
+        if use_augmentations:
+            self.transform = A.Compose(
+                [
+                    A.HorizontalFlip(
+                        p=0.5,
+                    ),
+                    A.Rotate(
+                        limit=(-20, 20),
+                        p=1.0,
+                        border_mode=cv2.BORDER_REFLECT_101,
+                    ),
+                    A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
+                ]
+            )
+        else:
+            self.transform = A.Compose(
+                [
+                    A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
+                ]
+            )
 
     def _get_image(self, image_path: str) -> np.ndarray:
         """
@@ -286,9 +311,9 @@ class SkyCoverModule(pl.LightningDataModule):
         self.test_dataset = None
 
         train_paths, val_paths, test_paths = SkyCoverModule._get_splitted_paths(
-            train_split=SPLITS[0],
-            val_split=SPLITS[1],
-            test_split=SPLITS[2],
+            train_split=SKY_COVER_SPLITS[0],
+            val_split=SKY_COVER_SPLITS[1],
+            test_split=SKY_COVER_SPLITS[2],
         )
         self.train_paths = train_paths
         self.val_paths = val_paths
@@ -309,13 +334,16 @@ class SkyCoverModule(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             self.train_dataset = SkyCoverDataset(
                 paths=self.train_paths,
+                use_augmentations=True,
             )
             self.val_dataset = SkyCoverDataset(
                 paths=self.val_paths,
+                use_augmentations=False,
             )
         if stage == "test" or stage is None:
             self.test_dataset = SkyCoverDataset(
                 paths=self.test_paths,
+                use_augmentations=False,
             )
 
     def train_dataloader(self) -> DataLoader:
@@ -329,6 +357,7 @@ class SkyCoverModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.n_workers,
+            persistent_workers=True,
             shuffle=True,
             pin_memory=True,
             drop_last=True,

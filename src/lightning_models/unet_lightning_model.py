@@ -2,20 +2,16 @@ import os
 import sys
 import torch
 import torch.nn as nn
-from typing import Dict, Any
 import lightning.pytorch as pl
+from typing import Dict, Any, List
+from src.losses.dice_loss import DiceLoss
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.losses.ntxent_loss import NTXentLoss
-from src.config import (
-    CRITERION_TEMPERATURE,
-)
 
-
-class ContrastiveLightningModel(pl.LightningModule):
+class UNetLightningModel(pl.LightningModule):
     """
-    Lightning model for training and evaluating a neural network model.
+    Lightning model for training and evaluating a UNet segmentation model.
     """
 
     def __init__(
@@ -27,23 +23,23 @@ class ContrastiveLightningModel(pl.LightningModule):
         dataset: str,
     ) -> None:
         """
-        Initialize the ContrastiveLightningModel.
+        Initialize the UNetLightningModel.
 
         Args:
-            model (nn.Module): The neural network model to be trained.
+            model (nn.Module): The UNet model to be trained.
             learning_rate (float): Learning rate for the optimizer.
             weight_decay (float): Weight decay for the optimizer.
             name (str): Name of the model.
             dataset (str): Name of the dataset.
         """
-        super(ContrastiveLightningModel, self).__init__()
+        super(UNetLightningModel, self).__init__()
 
         self.model = model
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.name = name
         self.dataset = dataset
-        self.criterion = NTXentLoss(temperature=CRITERION_TEMPERATURE)
+        self.criterion = DiceLoss(smooth=1.0, square=True)
 
     def on_train_epoch_start(self) -> None:
         """
@@ -51,46 +47,38 @@ class ContrastiveLightningModel(pl.LightningModule):
         """
         self.model.train()
 
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass through the model. This method is not used.
-        """
-        pass
 
-    def _shared_step(
-        self, batch: torch.Tensor, step_type: str
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the model.
+        """
+        return self.model(x)
+
+    def _shared_step(self, batch: List[torch.Tensor], step_type: str) -> torch.Tensor:
         """
         Shared step for training, validation, and testing.
 
         Args:
-            batch (torch.Tensor): Input batch of data.
+            batch (List[torch.Tensor]): Input batch containing [images, ground_truth].
             batch_idx (int): Index of the batch.
             step_type (str): Type of step ('train', 'val', or 'test').
 
         Returns:
             torch.Tensor: Loss value.
         """
-        # Resize batch and forward pass
-        batch_size, n_pairs, two, n_channels, height, width = batch.shape
-        flattened_batch = batch.view(
-            batch_size * n_pairs * two, n_channels, height, width
-        )
-        flattened_outputs = self.model(flattened_batch)
-        outputs = flattened_outputs.view(batch_size, n_pairs, two, -1)
-
-        # Compute and log loss
-        loss = self.criterion(outputs)
+        x, y = batch
+        y_pred = self.model(x)
+        loss = self.criterion(y_pred, y)
         self.log(f"{step_type}_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
 
         return loss
 
-    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: List[torch.Tensor], batch_idx: int) -> torch.Tensor:
         """
         Training step for the model.
 
         Args:
-            batch (Any): Input batch of data.
+            batch (List[torch.Tensor]): Input batch containing [images, ground_truth].
             batch_idx (int): Index of the batch.
 
         Returns:
@@ -98,12 +86,14 @@ class ContrastiveLightningModel(pl.LightningModule):
         """
         return self._shared_step(batch, "train")
 
-    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+    def validation_step(
+        self, batch: List[torch.Tensor], batch_idx: int
+    ) -> torch.Tensor:
         """
         Validation step for the model.
 
         Args:
-            batch (Any): Input batch of data.
+            batch (List[torch.Tensor]): Input batch containing [images, ground_truth].
             batch_idx (int): Index of the batch.
 
         Returns:
@@ -111,12 +101,12 @@ class ContrastiveLightningModel(pl.LightningModule):
         """
         return self._shared_step(batch, "val")
 
-    def test_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+    def test_step(self, batch: List[torch.Tensor], batch_idx: int) -> torch.Tensor:
         """
         Test step for the model.
 
         Args:
-            batch (Any): Input batch of data.
+            batch (List[torch.Tensor]): Input batch containing [images, ground_truth].
             batch_idx (int): Index of the batch.
 
         Returns:

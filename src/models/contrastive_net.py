@@ -7,16 +7,6 @@ from torchvision.models import resnet50, ResNet50_Weights
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import os
-import sys
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torchvision.models import resnet50, ResNet50_Weights
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-
 class ContrastiveNet(nn.Module):
     """
     Contrastive Neural Network using ResNet50 as backbone.

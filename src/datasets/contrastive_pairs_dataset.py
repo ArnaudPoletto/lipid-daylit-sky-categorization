@@ -25,7 +25,7 @@ from src.config import (
     SKY_FINDER_WIDTH,
     SKY_FINDER_HEIGHT,
     N_PAIRS,
-    SPLITS,
+    SKY_FINDER_SPLITS,
 )
 
 
@@ -386,9 +386,9 @@ class ContrastivePairsModule(pl.LightningDataModule):
 
         train_paths_dict, val_paths_dict, test_paths_dict = (
             ContrastivePairsModule._get_splitted_paths_dict(
-                train_split=SPLITS[0],
-                val_split=SPLITS[1],
-                test_split=SPLITS[2],
+                train_split=SKY_FINDER_SPLITS[0],
+                val_split=SKY_FINDER_SPLITS[1],
+                test_split=SKY_FINDER_SPLITS[2],
             )
         )
         self.train_paths_dict = train_paths_dict
@@ -436,6 +436,7 @@ class ContrastivePairsModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.n_workers,
+            persistent_workers=True,
             shuffle=True,
             pin_memory=True,
             drop_last=True,

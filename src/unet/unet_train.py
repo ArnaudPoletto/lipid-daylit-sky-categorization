@@ -8,20 +8,19 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from src.models.unet import UNet
 from src.utils.random import set_seed
-from src.models.contrastive_net import ContrastiveNet
-from src.lightning_models.contrastive_lightning_model import ContrastiveLightningModel
-from src.datasets.contrastive_pairs_dataset import ContrastivePairsModule
+from src.lightning_models.unet_lightning_model import UNetLightningModel
+from src.datasets.sky_cover_dataset import SkyCoverModule
 from src.config import (
-    PROJECTION_DIM,
     MODELS_PATH,
     SEED,
 )
 
-N_EPOCHS = 4
+N_EPOCHS = 20
 BATCH_SIZE = 2
 N_WORKERS = 8
-EVALUATION_STEPS = 500
+EVALUATION_STEPS = 250
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
 
@@ -32,17 +31,17 @@ def main() -> None:
     torch.set_float32_matmul_precision("high")
 
     # Get model
-    model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
-    lightning_model = ContrastiveLightningModel(
+    model = UNet(pretrained=True)
+    lightning_model = UNetLightningModel(
         model=model,
         learning_rate=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
-        name="contrastive_net",
-        dataset="sky_finder",
+        name="unet",
+        dataset="sky_cover",
     )
 
     # Get trainer and train
-    wandb_name = f"{time.strftime('%Y%m%d-%H%M%S')}_contrastive_net"
+    wandb_name = f"{time.strftime('%Y%m%d-%H%M%S')}_unet"
     config = {}
     wandb_logger = WandbLogger(
         project="lipid",
@@ -51,7 +50,7 @@ def main() -> None:
     )
 
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"{MODELS_PATH}/contrastive_net/{wandb_name}",
+        dirpath=f"{MODELS_PATH}/unet/{wandb_name}",
         filename="{epoch}-{val_loss:.2f}",
         save_top_k=3,
         monitor="val_loss",
@@ -71,7 +70,7 @@ def main() -> None:
         callbacks=callbacks,
     )
 
-    data_module = ContrastivePairsModule(
+    data_module = SkyCoverModule(
         batch_size=BATCH_SIZE,
         n_workers=N_WORKERS,
         seed=SEED,
