@@ -4,9 +4,11 @@ import torch
 import torch.nn as nn
 import lightning.pytorch as pl
 from typing import Dict, Any, List
-from src.losses.dice_loss import DiceLoss
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from src.losses.dice_loss import DiceLoss
+from src.losses.focal_loss import FocalLoss
 
 
 class UNetLightningModel(pl.LightningModule):
@@ -39,13 +41,28 @@ class UNetLightningModel(pl.LightningModule):
         self.weight_decay = weight_decay
         self.name = name
         self.dataset = dataset
-        self.criterion = DiceLoss(smooth=1.0, square=True)
+        self.cloud_criterion1 = FocalLoss(alpha=0.5, gamma=2.0)
+        self.bloom_criterion1 = FocalLoss(alpha=0.9, gamma=1.0)
+        self.cloud_criterion2 = DiceLoss()
+        self.bloom_criterion2 = DiceLoss()
 
     def on_train_epoch_start(self) -> None:
         """
         Called at the start of the training epoch.
         """
         self.model.train()
+
+    def on_validation_epoch_start(self) -> None:
+        """
+        Called at the start of the validation epoch.
+        """
+        self.model.eval()
+
+    def on_test_epoch_start(self) -> None:
+        """
+        Called at the start of the test epoch.
+        """
+        self.model.eval()
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -66,9 +83,24 @@ class UNetLightningModel(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        x, y = batch
+        x, cloud_y, bloom_y = batch
         y_pred = self.model(x)
-        loss = self.criterion(y_pred, y)
+        if isinstance(y_pred, dict):
+            y_pred = y_pred["out"]
+        cloud_y_pred = y_pred[:, 0, :, :].unsqueeze(1)
+        bloom_y_pred = y_pred[:, 1, :, :].unsqueeze(1)
+
+        cloud_loss1 = self.cloud_criterion1(cloud_y_pred, cloud_y)
+        cloud_loss2 = self.cloud_criterion2(cloud_y_pred, cloud_y)
+        cloud_loss = cloud_loss1 + cloud_loss2
+        bloom_loss1 = self.bloom_criterion1(bloom_y_pred, bloom_y)
+        bloom_loss2 = self.bloom_criterion2(bloom_y_pred, bloom_y)
+        bloom_loss = bloom_loss1 + bloom_loss2
+        #loss = cloud_loss + bloom_loss
+        loss = cloud_loss
+
+        self.log(f"{step_type}_cloud_loss", cloud_loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(f"{step_type}_bloom_loss", bloom_loss, on_step=True, on_epoch=True, sync_dist=True)
         self.log(f"{step_type}_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
 
         return loss

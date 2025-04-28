@@ -15,7 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.utils.random import set_seed
 from src.utils.random import SeededDataLoader
 from src.transformations.mean_patches import MeanPatches
-from src.datasets.sky_finder import (
+from src.utils.sky_finder import (
     get_sky_finder_masks,
     get_sky_finder_bounding_boxes,
     get_sky_finder_paths_dict,
@@ -185,7 +185,7 @@ class ContrastivePairsDataset(Dataset):
                 ),
                 A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
                 A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
-                A.CLAHE(clip_limit=(0, 1), p=0.5),
+                A.CLAHE(clip_limit=2, p=0.5),
                 A.ColorJitter(
                     brightness=0.2,
                     contrast=0.2,

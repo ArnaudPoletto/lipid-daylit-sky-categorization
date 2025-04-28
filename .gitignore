@@ -1,9 +1,12 @@
 src/contrastive_net/wandb/
 src/unet/wandb/
-notebooks/tsne_interactive_plot.html
+generated/tsne_interactive_plot.html
 
 data/TODO
 data/models/unet
+data/sky_finder/train/
+data/sky_finder/test/
+data/sky_finder/val/
 data/sky_finder/archives/
 data/sky_finder/extracted/
 data/sky_finder/images/

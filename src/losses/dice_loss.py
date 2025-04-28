@@ -1,54 +1,48 @@
+# This file contains the Dice loss.
+# From: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class DiceLoss(nn.Module):
     """
-    Implementation of the Dice Loss for segmentation tasks.
-    Supports both binary and continuous (0 to 1) target values.
+    Dice Loss.
     """
 
-    def __init__(self, smooth=1.0, square=True) -> None:
+    def __init__(self) -> None:
         """
-        Initialize the DiceLoss module.
+        Initialize the Dice loss.
 
         Args:
-            smooth (float): Small constant added to numerator and denominator to avoid division by zero.
-            square (bool): Whether to square the inputs before calculating the loss.
+            weight (torch.Tensor, optional): The weight, defaults to None
+            size_average (bool, optional): Whether to average the loss, defaults to True
         """
         super(DiceLoss, self).__init__()
-        self.smooth = smooth
-        self.square = square
 
-    def forward(self, predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, targets: torch.Tensor, smooth: int = 1
+    ) -> torch.Tensor:
         """
-        Forward pass to compute the Dice Loss.
+        Forward pass.
 
         Args:
-            predictions (torch.Tensor): Predicted probability masks, shape (batch_size, 1, height, width).
-            targets (torch.Tensor): Ground truth masks, shape (batch_size, 1, height, width).
+            inputs (torch.Tensor): The inputs
+            targets (torch.Tensor): The targets
+            smooth (int, optional): The smoothing factor, defaults to 1
 
         Returns:
-            torch.Tensor: Computed Dice Loss.
+            torch.Tensor: The loss
         """
-        # Flatten the tensors
-        predictions = predictions.view(-1)
+        inputs = F.sigmoid(inputs).type(torch.float32)
+        targets = targets.type(torch.float32)
+
+        # Flatten label and prediction tensors
+        inputs = inputs.view(-1)
         targets = targets.view(-1)
 
-        # Apply squaring if enabled
-        if self.square:
-            intersection = torch.sum(predictions * targets)
-            pred_sum = torch.sum(predictions * predictions)
-            target_sum = torch.sum(targets * targets)
-        else:
-            intersection = torch.sum(predictions * targets)
-            pred_sum = torch.sum(predictions)
-            target_sum = torch.sum(targets)
+        intersection = (inputs * targets).sum()
+        dice = (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
 
-        # Calculate Dice coefficient
-        dice_coefficient = (2.0 * intersection + self.smooth) / (pred_sum + target_sum + self.smooth)
-        
-        # Convert to loss (1 - dice)
-        dice_loss = 1.0 - dice_coefficient
-
-        return dice_loss
+        return 1 - dice

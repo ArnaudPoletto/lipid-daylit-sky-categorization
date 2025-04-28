@@ -1,8 +1,12 @@
 import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 import sys
 import time
 import torch
+import torch.nn as nn
 import lightning.pytorch as pl
+import torchvision.models.segmentation as models
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -11,19 +15,21 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from src.models.unet import UNet
 from src.utils.random import set_seed
 from src.lightning_models.unet_lightning_model import UNetLightningModel
-from src.datasets.sky_cover_dataset import SkyCoverModule
+from src.datasets.sky_finder_cover_dataset import SkyFinderCoverModule
 from src.config import (
     MODELS_PATH,
     SEED,
+    DEVICE,
 )
 
-N_EPOCHS = 20
+N_EPOCHS = 40
 BATCH_SIZE = 2
 N_WORKERS = 8
-EVALUATION_STEPS = 250
-LEARNING_RATE = 1e-4
+EVALUATION_STEPS = 40
+LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4
-
+BOTTLENECK_DROPOUT_RATE = 0.1
+DECODER_DROPOUT_RATE = 0.25
 
 def main() -> None:
     set_seed(SEED)
@@ -31,13 +37,17 @@ def main() -> None:
     torch.set_float32_matmul_precision("high")
 
     # Get model
-    model = UNet(pretrained=True)
+    model = UNet(
+        pretrained=True,
+        bottleneck_dropout_rate=BOTTLENECK_DROPOUT_RATE,
+        decoder_dropout_rate=DECODER_DROPOUT_RATE,
+    ).to(DEVICE)
     lightning_model = UNetLightningModel(
         model=model,
         learning_rate=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
         name="unet",
-        dataset="sky_cover",
+        dataset="sky_finder_cover",
     )
 
     # Get trainer and train
@@ -70,7 +80,7 @@ def main() -> None:
         callbacks=callbacks,
     )
 
-    data_module = SkyCoverModule(
+    data_module = SkyFinderCoverModule(
         batch_size=BATCH_SIZE,
         n_workers=N_WORKERS,
         seed=SEED,

@@ -1,6 +1,6 @@
 import os
-import sys
 import torch
+import numpy as np
 
 SEED = 0
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -9,6 +9,11 @@ GLOBAL_PATH = str(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DATA_PATH = f"{GLOBAL_PATH}data/"
 GENERATED_PATH = f"{GLOBAL_PATH}generated/"
 MODELS_PATH = f"{DATA_PATH}models/"
+
+SKY_FINDER_TRAIN_SPLIT = 0.6
+SKY_FINDER_VAL_SPLIT = 0.2
+SKY_FINDER_TEST_SPLIT = 0.2
+assert np.isclose(SKY_FINDER_TRAIN_SPLIT + SKY_FINDER_VAL_SPLIT + SKY_FINDER_TEST_SPLIT, 1.0), "Train, val and test splits must sum to 1."
 
 # Texture descriptor
 SKY_FINDER_PATH = f"{DATA_PATH}sky_finder/"
@@ -37,6 +42,7 @@ CRITERION_TEMPERATURE = 0.5
 
 # Cloud coverage estimator
 SKY_COVER_PATH = f"{DATA_PATH}sky_cover/"
+SKY_FINDER_COVER_PATH = f"{DATA_PATH}sky_finder_cover/"
 
 UNET_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline.ckpt"
 
@@ -45,5 +51,3 @@ SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]
 SKY_COVER_WIDTH = 640
 SKY_COVER_HEIGHT = 360
 SKY_COVER_MAX_GROUND_TRUTH_VALUE = 224
-
-SKY_COVER_SPLITS = (0.6, 0.2, 0.2)

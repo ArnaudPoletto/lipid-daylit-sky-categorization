@@ -16,7 +16,6 @@ from src.utils.random import set_seed
 from src.utils.random import SeededDataLoader
 from src.utils.file import get_paths_recursive
 from src.config import (
-    SKY_COVER_SPLITS,
     SKY_COVER_PATH,
     SKY_COVER_WIDTH,
     SKY_COVER_HEIGHT,
@@ -82,12 +81,12 @@ class SkyCoverDataset(Dataset):
             self.image_transform = A.Compose(
                 [
                     A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
-                    A.CLAHE(clip_limit=(0, 1), p=0.5),
+                    A.CLAHE(clip_limit=2, p=0.5),
                     A.ColorJitter(
                         brightness=0.2,
                         contrast=0.2,
                         saturation=0.2,
-                        hue=0.1,
+                        hue=0.2,
                         p=1.0,
                     ),
                     A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5),
@@ -150,6 +149,15 @@ class SkyCoverDataset(Dataset):
                 ]
             )
 
+    def __len__(self) -> int:
+        """
+        Returns the total number of images in the dataset.
+
+        Returns:
+            int: Total number of images in the dataset.
+        """
+        return len(self.all_images)
+
     def _get_image(self, image_path: str) -> np.ndarray:
         """
         Load an image from the given path and convert it to RGB format.
@@ -208,15 +216,6 @@ class SkyCoverDataset(Dataset):
 
         return ground_truth
 
-    def __len__(self) -> int:
-        """
-        Returns the total number of images in the dataset.
-
-        Returns:
-            int: Total number of images in the dataset.
-        """
-        return len(self.all_images)
-
     def __getitem__(self, idx: int):
         image_path = self.all_images[idx]
         ground_truth_path = self.all_ground_truths[idx]
@@ -237,61 +236,49 @@ class SkyCoverDataset(Dataset):
 
 
 class SkyCoverModule(pl.LightningDataModule):
-    def _get_splitted_paths(
-        train_split: float,
-        val_split: float,
-        test_split: float,
-    ) -> Tuple[List[str], List[str], List[str]]:
-        if not np.isclose(train_split + val_split + test_split, 1.0):
-            raise ValueError("❌ Train, validation and test splits must sum to 1.0.")
-        
+    def _get_splitted_paths() -> Tuple[List[str], List[str]]:
         # Get folders for each sky type
-        clear_paths = get_paths_recursive(
-            folder_path=f"{SKY_COVER_PATH}clear/",
+        train_clear_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}clear/train",
             match_pattern="*",
             path_type="d",
             recursive=False,
         )
-        partial_paths = get_paths_recursive(
-            folder_path=f"{SKY_COVER_PATH}partial/",
+        val_clear_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}clear/val",
             match_pattern="*",
             path_type="d",
             recursive=False,
         )
-        overcast_paths = get_paths_recursive(
-            folder_path=f"{SKY_COVER_PATH}overcast/",
+        train_partial_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}partial/train",
             match_pattern="*",
             path_type="d",
             recursive=False,
         )
-
-        # Randomly shuffle the paths
-        random.shuffle(clear_paths)
-        random.shuffle(partial_paths)
-        random.shuffle(overcast_paths)
-
-        # Split the paths into train, validation, and test sets
-        train_clear_paths = clear_paths[: int(len(clear_paths) * train_split)]
-        train_partial_paths = partial_paths[: int(len(partial_paths) * train_split)]
-        train_overcast_paths = overcast_paths[: int(len(overcast_paths) * train_split)]
-        val_clear_paths = clear_paths[
-            int(len(clear_paths) * train_split) : int(len(clear_paths) * (train_split + val_split))
-        ]
-        val_partial_paths = partial_paths[
-            int(len(partial_paths) * train_split) : int(len(partial_paths) * (train_split + val_split))
-        ]
-        val_overcast_paths = overcast_paths[
-            int(len(overcast_paths) * train_split) : int(len(overcast_paths) * (train_split + val_split))
-        ]
-        test_clear_paths = clear_paths[int(len(clear_paths) * (train_split + val_split)) :]
-        test_partial_paths = partial_paths[int(len(partial_paths) * (train_split + val_split)) :]
-        test_overcast_paths = overcast_paths[int(len(overcast_paths) * (train_split + val_split)) :]
+        val_partial_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}partial/val",
+            match_pattern="*",
+            path_type="d",
+            recursive=False,
+        )
+        train_overcast_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}overcast/train",
+            match_pattern="*",
+            path_type="d",
+            recursive=False,
+        )
+        val_overcast_paths = get_paths_recursive(
+            folder_path=f"{SKY_COVER_PATH}overcast/val",
+            match_pattern="*",
+            path_type="d",
+            recursive=False,
+        )
 
         train_paths = train_clear_paths + train_partial_paths + train_overcast_paths
         val_paths = val_clear_paths + val_partial_paths + val_overcast_paths
-        test_paths = test_clear_paths + test_partial_paths + test_overcast_paths
 
-        return train_paths, val_paths, test_paths
+        return train_paths, val_paths
 
 
     def __init__(
@@ -310,14 +297,9 @@ class SkyCoverModule(pl.LightningDataModule):
         self.val_dataset = None
         self.test_dataset = None
 
-        train_paths, val_paths, test_paths = SkyCoverModule._get_splitted_paths(
-            train_split=SKY_COVER_SPLITS[0],
-            val_split=SKY_COVER_SPLITS[1],
-            test_split=SKY_COVER_SPLITS[2],
-        )
+        train_paths, val_paths = SkyCoverModule._get_splitted_paths()
         self.train_paths = train_paths
         self.val_paths = val_paths
-        self.test_paths = test_paths
 
     def setup(self, stage: Optional[str] = None) -> None:
         """
@@ -341,10 +323,7 @@ class SkyCoverModule(pl.LightningDataModule):
                 use_augmentations=False,
             )
         if stage == "test" or stage is None:
-            self.test_dataset = SkyCoverDataset(
-                paths=self.test_paths,
-                use_augmentations=False,
-            )
+            pass
 
     def train_dataloader(self) -> DataLoader:
         """
@@ -380,18 +359,8 @@ class SkyCoverModule(pl.LightningDataModule):
             pin_memory=True,
         )
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> Optional[DataLoader]:
         """
         Returns the test dataloader.
-
-        Returns:
-            DataLoader: The test dataloader.
         """
-        return SeededDataLoader(
-            self.test_dataset,
-            seed=self.seed,
-            batch_size=self.batch_size,
-            num_workers=self.n_workers,
-            shuffle=False,
-            pin_memory=True,
-        )
+        return None

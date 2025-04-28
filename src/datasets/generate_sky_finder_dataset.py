@@ -3,6 +3,7 @@ import sys
 import wget
 import glob
 import json
+import random
 import shutil
 import zipfile
 import argparse
@@ -11,12 +12,20 @@ import concurrent.futures
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from src.utils.file import get_paths_recursive
+from src.utils.random import set_seed
+
 from src.config import (
+    SEED,
+    SKY_FINDER_PATH,
     SKY_FINDER_CAMERA_IDS,
     SKY_FINDER_IMAGES_PATH,
     SKY_FINDER_ARCHIVES_PATH,
     SKY_FINDER_EXTRACTED_PATH,
     KSY_FINDER_CATEGORY_MAPPING_FILE_PATH,
+    SKY_FINDER_TRAIN_SPLIT,
+    SKY_FINDER_VAL_SPLIT,
+    SKY_FINDER_TEST_SPLIT,
 )
 
 
@@ -59,7 +68,13 @@ def download_archives(
     # Delete existing archives if force is True
     if force:
         print("⚠️  Force re-download enabled. Deleting existing archives...")
-        for archive in glob.glob(os.path.join(SKY_FINDER_ARCHIVES_PATH, "*.zip")):
+        archive_paths = get_paths_recursive(
+            folder_path=SKY_FINDER_ARCHIVES_PATH,
+            match_pattern="*.zip",
+            path_type="f",
+            recursive=False,
+        )
+        for archive in archive_paths:
             os.remove(archive)
 
     # Ensure download directory exists
@@ -114,29 +129,44 @@ def extract_archives(
     # Delete existing extracted archives if force is True
     if force:
         print("⚠️  Force re-extraction enabled. Deleting existing extracted archives...")
-        for extracted_dir in glob.glob(os.path.join(SKY_FINDER_EXTRACTED_PATH, "*")):
-            shutil.rmtree(extracted_dir, ignore_errors=True)
+        extracted_dir_paths = get_paths_recursive(
+            folder_path=SKY_FINDER_EXTRACTED_PATH,
+            match_pattern="*",
+            path_type="d",
+            recursive=False,
+        )
+        for extracted_dir_path in extracted_dir_paths:
+            shutil.rmtree(extracted_dir_path, ignore_errors=True)
 
     # Ensure extraction directory exists
     os.makedirs(SKY_FINDER_EXTRACTED_PATH, exist_ok=True)
 
     # Get list of archives to extract
-    archive_files = glob.glob(os.path.join(SKY_FINDER_ARCHIVES_PATH, "*.zip"))
-    if not archive_files:
+    archive_file_paths = get_paths_recursive(
+        folder_path=SKY_FINDER_ARCHIVES_PATH,
+        match_pattern="*.zip",
+        path_type="f",
+        recursive=False,
+    )
+    archive_file_paths_to_extract = []
+    for archive_file_path in archive_file_paths:
+        camera_id = os.path.basename(archive_file_path).replace(".zip", "")
+        extracted_camera_dir = os.path.join(SKY_FINDER_EXTRACTED_PATH, camera_id)
+        if not os.path.exists(extracted_camera_dir):
+            archive_file_paths_to_extract.append(archive_file_path)
+    if not archive_file_paths_to_extract:
         print("✅ No archives to extract.")
         return
 
-    print(f"➡️  Found {len(archive_files)} archive(s) to extract.")
-    for archive_file in tqdm(archive_files, desc="⏳ Extracting archives..."):
-        camera_id = os.path.basename(archive_file).replace(".zip", "")
+    # Extract archives sequentially
+    print(f"➡️  Found {len(archive_file_paths_to_extract)} archive(s) to extract.")
+    for archive_file_path in tqdm(archive_file_paths_to_extract, desc="⏳ Extracting archives..."):
+        camera_id = os.path.basename(archive_file_path).replace(".zip", "")
         extracted_camera_dir = os.path.join(SKY_FINDER_EXTRACTED_PATH, camera_id)
-        if os.path.exists(extracted_camera_dir):
-            continue
-
         os.makedirs(extracted_camera_dir, exist_ok=True)
 
         try:
-            with zipfile.ZipFile(archive_file, "r") as zip_ref:
+            with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
                 zip_ref.extractall(extracted_camera_dir)
         except Exception as e:
             print(f"❌ Failed to extract {camera_id}.zip: {e}.")
@@ -187,15 +217,21 @@ def classify_extracted_images(
         print(
             "⚠️  Force re-classification enabled. Deleting existing classified images..."
         )
-        for category_dir in glob.glob(os.path.join(SKY_FINDER_IMAGES_PATH, "*")):
-            if os.path.isdir(category_dir):
-                shutil.rmtree(category_dir)
+        category_dir_paths = get_paths_recursive(
+            folder_path=SKY_FINDER_IMAGES_PATH,
+            match_pattern="*",
+            path_type="d",
+            recursive=False,
+        )
+        for category_dir_path in category_dir_paths:
+            if os.path.isdir(category_dir_path):
+                shutil.rmtree(category_dir_path, ignore_errors=True)
 
     # Load the category mapping
     try:
         with open(KSY_FINDER_CATEGORY_MAPPING_FILE_PATH, "r") as f:
             category_mapping = json.load(f)
-        print(f"✅ Loaded category mapping with {len(category_mapping)} entries")
+        print(f"✅ Loaded category mapping with {len(category_mapping)} entries.")
     except Exception as e:
         print(f"❌ Failed to load category mapping: {e}")
         return
@@ -246,20 +282,85 @@ def classify_extracted_images(
     print("✅ All images classified.")
 
 
+def split_classified_images() -> None:
+    """
+    Split the classified images into training, validation, and test sets.
+    """
+    # Create the split directories
+    directory_names = ["train", "val", "test"]
+    for directory_name in directory_names:
+        directory_path = f"{SKY_FINDER_PATH}{directory_name}/"
+        os.makedirs(directory_path, exist_ok=True)
+
+    # Get all images and move them to the appropriate split directory
+    image_file_paths = get_paths_recursive(
+        folder_path=SKY_FINDER_IMAGES_PATH,
+        match_pattern="*.jpg",
+        path_type="f",
+        recursive=True,
+    )
+
+    set_seed(SEED)
+    n_images = len(image_file_paths)
+    indices = list(range(n_images))
+    random_indices = indices.copy()
+    random.shuffle(random_indices)
+
+    train_indices = random_indices[: int(n_images * SKY_FINDER_TRAIN_SPLIT)]
+    val_indices = random_indices[
+        int(n_images * SKY_FINDER_TRAIN_SPLIT) : int(
+            n_images * (SKY_FINDER_TRAIN_SPLIT + SKY_FINDER_VAL_SPLIT)
+        )
+    ]
+
+    for i, image_file_path in tqdm(enumerate(image_file_paths), desc="⏳ Splitting images...", total=n_images):
+        directory_name = "train" if i in train_indices else "val" if i in val_indices else "test"
+        local_image_file_path = "/".join(image_file_path.split("/")[-3:])
+        new_image_file_path = f"{SKY_FINDER_PATH}{directory_name}/{local_image_file_path}"
+        os.makedirs(os.path.dirname(new_image_file_path), exist_ok=True)
+
+        if os.path.exists(new_image_file_path):
+            continue
+
+        try:
+            shutil.copy2(image_file_path, new_image_file_path)
+        except Exception as e:
+            print(f"❌ Failed to copy {image_file_path} to {new_image_file_path}: {e}.")
+            continue
+
+    print("✅ All images split into train, val, and test sets.")
+
+
 def remove_data() -> None:
     """
     Remove the downloaded archives and extracted data.
     """
     print("▶️  Removing archives...")
-    for archive in glob.glob(os.path.join(SKY_FINDER_ARCHIVES_PATH, "*.zip")):
-        os.remove(archive)
+    archive_paths = get_paths_recursive(
+        folder_path=SKY_FINDER_ARCHIVES_PATH,
+        match_pattern="*.zip",
+        path_type="f",
+        recursive=False,
+    )
+    for archive_path in archive_paths:
+        os.remove(archive_path)
     os.rmdir(SKY_FINDER_ARCHIVES_PATH)
 
-    for extracted_dir in glob.glob(os.path.join(SKY_FINDER_EXTRACTED_PATH, "*")):
-        shutil.rmtree(extracted_dir, ignore_errors=True)
+    print("▶️  Removing extracted data...")
+    extracted_dir_paths = get_paths_recursive(
+        folder_path=SKY_FINDER_EXTRACTED_PATH,
+        match_pattern="*",
+        path_type="d",
+        recursive=False,
+    )
+    for extracted_dir_path in extracted_dir_paths:
+        shutil.rmtree(extracted_dir_path, ignore_errors=True)
     os.rmdir(SKY_FINDER_EXTRACTED_PATH)
 
-    print("✅ All archives and extracted data removed.")
+    print("▶️  Removing classified images...")
+    shutil.rmtree(SKY_FINDER_IMAGES_PATH, ignore_errors=True)
+
+    print("✅ All unused data removed.")
 
 
 def parse_args() -> None:
@@ -303,6 +404,7 @@ def main() -> None:
     download_archives(max_workers=max_workers, force=force)
     extract_archives(force=force)
     classify_extracted_images(force=force)
+    split_classified_images()
 
     if remove_archives:
         remove_data()
