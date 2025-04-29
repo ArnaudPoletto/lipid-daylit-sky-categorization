@@ -282,10 +282,24 @@ def classify_extracted_images(
     print("✅ All images classified.")
 
 
-def split_classified_images() -> None:
+def split_classified_images(force: bool) -> None:
     """
     Split the classified images into training, validation, and test sets.
+
+    Args:
+        force (bool): Whether to force re-splitting of images.
     """
+    print("▶️  Splitting classified images into train, val, and test sets...")
+
+    if force:
+        print(
+            "⚠️  Force re-splitting enabled. Deleting existing split directories..."
+        )
+        directory_names = ["train", "val", "test"]
+        for directory_name in directory_names:
+            directory_path = f"{SKY_FINDER_PATH}{directory_name}/"
+            shutil.rmtree(directory_path, ignore_errors=True)
+
     # Create the split directories
     directory_names = ["train", "val", "test"]
     for directory_name in directory_names:
@@ -404,7 +418,7 @@ def main() -> None:
     download_archives(max_workers=max_workers, force=force)
     extract_archives(force=force)
     classify_extracted_images(force=force)
-    split_classified_images()
+    split_classified_images(force=force)
 
     if remove_archives:
         remove_data()

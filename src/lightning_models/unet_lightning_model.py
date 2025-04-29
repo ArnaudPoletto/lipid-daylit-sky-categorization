@@ -64,7 +64,6 @@ class UNetLightningModel(pl.LightningModule):
         """
         self.model.eval()
 
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the model.
@@ -96,11 +95,23 @@ class UNetLightningModel(pl.LightningModule):
         bloom_loss1 = self.bloom_criterion1(bloom_y_pred, bloom_y)
         bloom_loss2 = self.bloom_criterion2(bloom_y_pred, bloom_y)
         bloom_loss = bloom_loss1 + bloom_loss2
-        #loss = cloud_loss + bloom_loss
+        # loss = cloud_loss + bloom_loss
         loss = cloud_loss
 
-        self.log(f"{step_type}_cloud_loss", cloud_loss, on_step=True, on_epoch=True, sync_dist=True)
-        self.log(f"{step_type}_bloom_loss", bloom_loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{step_type}_cloud_loss",
+            cloud_loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        self.log(
+            f"{step_type}_bloom_loss",
+            bloom_loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
         self.log(f"{step_type}_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
 
         return loss

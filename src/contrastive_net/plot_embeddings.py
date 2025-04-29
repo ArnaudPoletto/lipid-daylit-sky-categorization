@@ -1,4 +1,7 @@
 import os
+os.environ['MPLBACKEND'] = 'Agg'
+os.environ["LOKY_MAX_CPU_COUNT"] = "16"
+
 import sys
 import json
 import numpy as np

@@ -18,7 +18,7 @@ from src.transformations.mean_patches import MeanPatches
 from src.utils.sky_finder import (
     get_sky_finder_masks,
     get_sky_finder_bounding_boxes,
-    get_sky_finder_paths_dict,
+    get_splitted_sky_finder_paths_dict
 )
 from src.config import (
     EPOCH_MULTIPLIERS,
@@ -184,7 +184,7 @@ class ContrastivePairsDataset(Dataset):
                     border_mode=cv2.BORDER_REFLECT_101,
                 ),
                 A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
-                A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
+                A.ImageCompression(quality_range=(50, 100), p=0.5),
                 A.CLAHE(clip_limit=2, p=0.5),
                 A.ColorJitter(
                     brightness=0.2,
@@ -193,28 +193,30 @@ class ContrastivePairsDataset(Dataset):
                     hue=0.1,
                     p=1.0,
                 ),
+                A.RandomGamma(gamma_limit=(80, 120), p=0.5),
+
+                A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.3),
+                A.GaussNoise(std_range=(0.0, 0.1), p=0.3),
+                A.OneOf([
+                    A.MotionBlur(blur_limit=5, p=0.5),
+                    A.MedianBlur(blur_limit=5, p=0.5),
+                    A.GaussianBlur(blur_limit=5, p=0.5),
+                ], p=0.3),
+
                 A.ElasticTransform(
                     alpha=1,
                     sigma=50,
-                    alpha_affine=50,
                     p=0.5,
                 ),
                 A.Perspective(
                     scale=(0.05, 0.1),
                     p=0.5,
                 ),
-                A.GaussianBlur(
-                    blur_limit=(3, 7),
-                    p=0.5,
-                ),
-                A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.5),
-                A.GaussNoise(
-                    var_limit=(10.0, 50.0),
-                    p=0.5,
-                ),
+
                 MeanPatches(
                     num_patches=(2, 5), patch_size=(50, 150), use_image_mean=True, p=0.7
                 ),
+
                 A.Normalize(
                     mean=(0.485, 0.456, 0.406),
                     std=(0.229, 0.224, 0.225),
@@ -305,61 +307,6 @@ class ContrastivePairsModule(pl.LightningDataModule):
     Contrastive Pairs Data Module for training contrastive learning models.
     """
 
-    def _get_splitted_paths_dict(
-        train_split: float,
-        val_split: float,
-        test_split: float,
-    ) -> Tuple[
-        Dict[str, Dict[str, List[str]]],
-        Dict[str, Dict[str, List[str]]],
-        Dict[str, Dict[str, List[str]]],
-    ]:
-        """
-        Split the paths dictionary into train, validation and test sets.
-
-        Args:
-            train_split (float): The proportion of the dataset to include in the train split.
-            val_split (float): The proportion of the dataset to include in the validation split.
-            test_split (float): The proportion of the dataset to include in the test split.
-
-        Returns:
-            Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, List[str]]]]: A tuple containing three dictionaries for train, validation and test splits.
-        """
-        if not np.isclose(train_split + val_split + test_split, 1.0):
-            raise ValueError("❌ Train, validation and test splits must sum to 1.0.")
-
-        # Get the paths dictionary
-        paths_dict = get_sky_finder_paths_dict()
-
-        # Split the paths dictionary into train, validation and test sets
-        train_paths_dict = {}
-        val_paths_dict = {}
-        test_paths_dict = {}
-        for sky_class, folders in paths_dict.items():
-            train_paths_dict[sky_class] = {}
-            val_paths_dict[sky_class] = {}
-            test_paths_dict[sky_class] = {}
-
-            for folder_name, image_paths in folders.items():
-                shuffled_image_paths = image_paths.copy()
-                random.shuffle(shuffled_image_paths)
-
-                n_images = len(shuffled_image_paths)
-                n_train = int(n_images * train_split)
-                n_val = int(n_images * val_split)
-
-                train_paths_dict[sky_class][folder_name] = shuffled_image_paths[
-                    :n_train
-                ]
-                val_paths_dict[sky_class][folder_name] = shuffled_image_paths[
-                    n_train : n_train + n_val
-                ]
-                test_paths_dict[sky_class][folder_name] = shuffled_image_paths[
-                    n_train + n_val :
-                ]
-
-        return train_paths_dict, val_paths_dict, test_paths_dict
-
     def __init__(
         self,
         batch_size: int,
@@ -384,13 +331,7 @@ class ContrastivePairsModule(pl.LightningDataModule):
         self.val_dataset = None
         self.test_dataset = None
 
-        train_paths_dict, val_paths_dict, test_paths_dict = (
-            ContrastivePairsModule._get_splitted_paths_dict(
-                train_split=SKY_FINDER_SPLITS[0],
-                val_split=SKY_FINDER_SPLITS[1],
-                test_split=SKY_FINDER_SPLITS[2],
-            )
-        )
+        train_paths_dict, val_paths_dict, test_paths_dict = get_splitted_sky_finder_paths_dict()
         self.train_paths_dict = train_paths_dict
         self.val_paths_dict = val_paths_dict
         self.test_paths_dict = test_paths_dict

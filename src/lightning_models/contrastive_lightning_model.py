@@ -51,15 +51,25 @@ class ContrastiveLightningModel(pl.LightningModule):
         """
         self.model.train()
 
+    def on_validation_epoch_start(self) -> None:
+        """
+        Called at the start of the validation epoch.
+        """
+        self.model.eval()
+
+    def on_test_epoch_start(self) -> None:
+        """
+        Called at the start of the test epoch.
+        """
+        self.model.eval()
+
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the model. This method is not used.
         """
         pass
 
-    def _shared_step(
-        self, batch: torch.Tensor, step_type: str
-    ) -> torch.Tensor:
+    def _shared_step(self, batch: torch.Tensor, step_type: str) -> torch.Tensor:
         """
         Shared step for training, validation, and testing.
 

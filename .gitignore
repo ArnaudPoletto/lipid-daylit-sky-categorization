@@ -3,6 +3,7 @@ src/unet/wandb/
 generated/tsne_interactive_plot.html
 
 data/TODO
+data/models/contrastive_net
 data/models/unet
 data/sky_finder/train/
 data/sky_finder/test/

@@ -10,7 +10,7 @@ from typing import Tuple
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.datasets.sky_finder import (
+from src.utils.sky_finder import (
     get_sky_finder_masks,
     get_sky_finder_bounding_boxes,
     get_sky_finder_paths_dict,
@@ -151,41 +151,38 @@ def main():
     # Get model
     model = get_model(checkpoint_path=checkpoint_path)
 
-    # Get image file paths
-    image_file_paths = get_paths_recursive(
-        folder_path=SKY_FINDER_IMAGES_PATH,
-        match_pattern="*.jpg",
-        path_type="f",
-        recursive=True,
-    )
-    print(f"✅ Found {len(image_file_paths)} images.")
-
     # Generate embeddings
-    paths_dict = get_sky_finder_paths_dict()
+    paths_dict = get_sky_finder_paths_dict(split="test")
     masks = get_sky_finder_masks(paths_dict)
     bounding_boxes = get_sky_finder_bounding_boxes(paths_dict)
     embeddings = {}
-    for image_file_path in tqdm(
-        image_file_paths, desc="⌛ Generating embeddings...", unit="file"
-    ):
-        sky_type = image_file_path.split("/")[-3]
-        camera_id = image_file_path.split("/")[-2]
+    n_images = sum(
+        len(image_paths) for camera_id in paths_dict.keys() for image_paths in paths_dict[camera_id].values()
+    )
+    bar = tqdm(total=n_images, desc="⌛ Generating embeddings...", unit="file")
+    for sky_type in paths_dict.keys():
+        for camera_id in paths_dict[sky_type].keys():
+            image_file_paths = paths_dict[sky_type][camera_id]
+            for image_file_path in image_file_paths:
+                if camera_id not in masks:
+                    print(f"❌ Camera ID {camera_id} not found in masks.")
+                    bar.update(1)
+                    continue
+                mask = masks[camera_id]
 
-        if camera_id not in masks:
-            print(f"❌ Camera ID {camera_id} not found in masks.")
-            continue
-        mask = masks[camera_id]
+                if camera_id not in bounding_boxes:
+                    print(f"❌ Camera ID {camera_id} not found in bounding boxes.")
+                    bar.update(1)
+                    continue
+                bounding_box = bounding_boxes[camera_id]
 
-        if camera_id not in bounding_boxes:
-            print(f"❌ Camera ID {camera_id} not found in bounding boxes.")
-            continue
-        bounding_box = bounding_boxes[camera_id]
+                image = get_image(
+                    image_file_path=image_file_path, mask=mask, bounding_box=bounding_box
+                )
+                embedding = get_embedding(image=image, model=model)
+                embeddings[image_file_path] = {"sky_type": sky_type, "embedding": embedding}
 
-        image = get_image(
-            image_file_path=image_file_path, mask=mask, bounding_box=bounding_box
-        )
-        embedding = get_embedding(image=image, model=model)
-        embeddings[image_file_path] = {"sky_type": sky_type, "embedding": embedding}
+                bar.update(1)
 
     # Save embeddings
     with open(EMBEDDINGS_FILE_PATH, "w") as f:
