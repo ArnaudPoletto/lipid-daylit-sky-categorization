@@ -4,6 +4,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 import sys
 import time
 import torch
+import argparse
 import torch.nn as nn
 import lightning.pytorch as pl
 import torchvision.models.segmentation as models
@@ -17,6 +18,7 @@ from src.utils.random import set_seed
 from src.lightning_models.unet_lightning_model import UNetLightningModel
 from src.datasets.sky_finder_cover_dataset import SkyFinderCoverModule
 from src.config import (
+    UNET_CHECKPOINT_PATH,
     MODELS_PATH,
     SEED,
     DEVICE,
@@ -31,9 +33,24 @@ WEIGHT_DECAY = 1e-4
 BOTTLENECK_DROPOUT_RATE = 0.1
 DECODER_DROPOUT_RATE = 0.25
 
-def main() -> None:
-    set_seed(SEED)
+def parse_args() -> None:
+    parser = argparse.ArgumentParser(description="Train UNet model.")
 
+    parser.add_argument(
+        "-a",
+        "--active",
+        action="store_true",
+        help="Perform active learning training.",
+    )
+
+    return parser.parse_args()
+
+def main() -> None:
+    args = parse_args()
+    active = args.active
+
+
+    set_seed(SEED)
     torch.set_float32_matmul_precision("high")
 
     # Get model
@@ -42,13 +59,25 @@ def main() -> None:
         bottleneck_dropout_rate=BOTTLENECK_DROPOUT_RATE,
         decoder_dropout_rate=DECODER_DROPOUT_RATE,
     ).to(DEVICE)
-    lightning_model = UNetLightningModel(
-        model=model,
-        learning_rate=LEARNING_RATE,
-        weight_decay=WEIGHT_DECAY,
-        name="unet",
-        dataset="sky_finder_cover",
-    )
+    if active:
+        lightning_model = UNetLightningModel.load_from_checkpoint(
+            UNET_CHECKPOINT_PATH,
+            model=model,
+            learning_rate=LEARNING_RATE * 0.1,
+            weight_decay=WEIGHT_DECAY,
+            name="unet",
+            dataset="sky_finder_cover",
+        )
+        print(f"✅ Loaded model from {os.path.abspath(UNET_CHECKPOINT_PATH)}.")
+    else:
+        lightning_model = UNetLightningModel(
+            model=model,
+            learning_rate=LEARNING_RATE,
+            weight_decay=WEIGHT_DECAY,
+            name="unet",
+            dataset="sky_finder_cover",
+        )
+        print("✅ Loaded pretrained model.")
 
     # Get trainer and train
     wandb_name = f"{time.strftime('%Y%m%d-%H%M%S')}_unet"
@@ -83,6 +112,7 @@ def main() -> None:
     data_module = SkyFinderCoverModule(
         batch_size=BATCH_SIZE,
         n_workers=N_WORKERS,
+        with_pseudo_labelling=active,
         seed=SEED,
     )
 

@@ -41,10 +41,8 @@ class UNetLightningModel(pl.LightningModule):
         self.weight_decay = weight_decay
         self.name = name
         self.dataset = dataset
-        self.cloud_criterion1 = FocalLoss(alpha=0.5, gamma=2.0)
-        self.bloom_criterion1 = FocalLoss(alpha=0.9, gamma=1.0)
-        self.cloud_criterion2 = DiceLoss()
-        self.bloom_criterion2 = DiceLoss()
+        self.criterion1 = FocalLoss(alpha=0.5, gamma=2.0)
+        self.criterion2 = DiceLoss()
 
     def on_train_epoch_start(self) -> None:
         """
@@ -82,32 +80,19 @@ class UNetLightningModel(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        x, cloud_y, bloom_y = batch
+        x, cloud_y = batch
         y_pred = self.model(x)
         if isinstance(y_pred, dict):
             y_pred = y_pred["out"]
-        cloud_y_pred = y_pred[:, 0, :, :].unsqueeze(1)
-        bloom_y_pred = y_pred[:, 1, :, :].unsqueeze(1)
+        y_pred = y_pred[:, 0, :, :].unsqueeze(1)
 
-        cloud_loss1 = self.cloud_criterion1(cloud_y_pred, cloud_y)
-        cloud_loss2 = self.cloud_criterion2(cloud_y_pred, cloud_y)
-        cloud_loss = cloud_loss1 + cloud_loss2
-        bloom_loss1 = self.bloom_criterion1(bloom_y_pred, bloom_y)
-        bloom_loss2 = self.bloom_criterion2(bloom_y_pred, bloom_y)
-        bloom_loss = bloom_loss1 + bloom_loss2
-        # loss = cloud_loss + bloom_loss
-        loss = cloud_loss
+        loss1 = self.criterion1(y_pred, cloud_y)
+        loss2 = self.criterion2(y_pred, cloud_y)
+        loss = loss1 + loss2
 
         self.log(
-            f"{step_type}_cloud_loss",
-            cloud_loss,
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-        )
-        self.log(
-            f"{step_type}_bloom_loss",
-            bloom_loss,
+            f"{step_type}_loss",
+            loss,
             on_step=True,
             on_epoch=True,
             sync_dist=True,

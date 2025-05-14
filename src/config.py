@@ -43,8 +43,11 @@ CRITERION_TEMPERATURE = 0.5
 # Cloud coverage estimator
 SKY_COVER_PATH = f"{DATA_PATH}sky_cover/"
 SKY_FINDER_COVER_PATH = f"{DATA_PATH}sky_finder_cover/"
+SKY_FINDER_ACTIVE_PATH = f"{DATA_PATH}sky_finder_active/"
+SKY_FINDER_ACTIVE_KEEP_PATH = f"{SKY_FINDER_ACTIVE_PATH}keep/"
 
 UNET_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline.ckpt"
+UNET_ACTIVE_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline_active.ckpt"
 
 SKY_FINDER_SKY_CLASSES = ["clear", "partial", "overcast"]
 

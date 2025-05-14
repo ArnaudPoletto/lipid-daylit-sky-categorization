@@ -3,7 +3,6 @@ import re
 import sys
 import cv2
 import torch
-import random
 import numpy as np
 import albumentations as A
 import lightning.pytorch as pl
@@ -21,6 +20,7 @@ from src.config import (
     SKY_FINDER_PATH,
     SKY_COVER_HEIGHT,
     SKY_FINDER_COVER_PATH,
+    SKY_FINDER_ACTIVE_KEEP_PATH,
 )
 
 class SkyFinderCoverDataset(Dataset):
@@ -32,9 +32,18 @@ class SkyFinderCoverDataset(Dataset):
         self,
         path: str,
     ) -> Tuple[List[str], List[str], List[str]]:
+        """
+        Get the paths of all images and ground truths in the dataset.
+        
+        Args:
+            path (str): Path to the dataset.
+            
+        Returns:
+            Tuple[List[str], List[str], List[str]]: Paths to all images and ground truths.
+
+        """
         images_path = f"{path}/images"
-        cloud_ground_truth_path = f"{path}/ground_truths/cloud"
-        bloom_ground_truth_path = f"{path}/ground_truths/bloom"
+        ground_truth_path = f"{path}/ground_truths"
 
         all_images = get_paths_recursive(
             folder_path=images_path,
@@ -43,83 +52,93 @@ class SkyFinderCoverDataset(Dataset):
             recursive=True,
         )
         all_images = sorted(all_images)
-        all_cloud_ground_truths = get_paths_recursive(
-            folder_path=cloud_ground_truth_path,
+        all_ground_truths = get_paths_recursive(
+            folder_path=ground_truth_path,
             match_pattern="*.jpg",
             path_type="f",
             recursive=True,
         )
-        all_cloud_ground_truths = sorted(all_cloud_ground_truths)
-        all_bloom_ground_truths = get_paths_recursive(
-            folder_path=bloom_ground_truth_path,
-            match_pattern="*.jpg",
-            path_type="f",
-            recursive=True,
-        )
-        all_bloom_ground_truths = sorted(all_bloom_ground_truths)
+        all_ground_truths = sorted(all_ground_truths)
 
         # Check missing images
-        for cloud_ground_truth in all_cloud_ground_truths:
-            image_path = re.sub(r"/ground_truths/cloud/", "/images/", cloud_ground_truth)
+        for ground_truth in all_ground_truths:
+            image_path = re.sub(r"/ground_truths/", "/images/", ground_truth)
             if image_path not in all_images:
                 raise ValueError(
-                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for cloud ground truth at path {os.path.abspath(cloud_ground_truth)}."
-                )
-        for bloom_ground_truth in all_bloom_ground_truths:
-            image_path = re.sub(r"/ground_truths/bloom/", "/images/", bloom_ground_truth)
-            if image_path not in all_images:
-                raise ValueError(
-                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for bloom ground truth at path {os.path.abspath(bloom_ground_truth)}."
+                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for ground truth at path {os.path.abspath(ground_truth)}."
                 )
         # Check missing ground truths
         for image in all_images:
-            cloud_ground_truth_path = re.sub(r"/images/", "/ground_truths/cloud/", image)
-            bloom_ground_truth_path = re.sub(r"/images/", "/ground_truths/bloom/", image)
-            if cloud_ground_truth_path not in all_cloud_ground_truths:
+            ground_truth_path = re.sub(r"/images/", "/ground_truths/", image)
+            if ground_truth_path not in all_ground_truths:
                 raise ValueError(
-                    f"❌ Cloud ground truth at path {os.path.abspath(cloud_ground_truth_path)} does not exist for image at path {os.path.abspath(image)}."
-                )
-            if bloom_ground_truth_path not in all_bloom_ground_truths:
-                raise ValueError(
-                    f"❌ Bloom ground truth at path {os.path.abspath(bloom_ground_truth_path)} does not exist for image at path {os.path.abspath(image)}."
+                    f"❌ Cloud ground truth at path {os.path.abspath(ground_truth_path)} does not exist for image at path {os.path.abspath(image)}."
                 )
 
         # Check if all ground truths have a corresponding image
-        if len(all_images) != len(all_cloud_ground_truths):
+        if len(all_images) != len(all_ground_truths):
             raise ValueError(
-                f"❌ Number of images ({len(all_images)}) does not match number of cloud ground truths ({len(all_cloud_ground_truths)})."
+                f"❌ Number of images ({len(all_images)}) does not match number of ground truths ({len(all_ground_truths)})."
             )
-        if len(all_images) != len(all_bloom_ground_truths):
-            raise ValueError(
-                f"❌ Number of images ({len(all_images)}) does not match number of bloom ground truths ({len(all_bloom_ground_truths)})."
-            )
-        for ground_truth in all_cloud_ground_truths:
-            image_path = re.sub(r"ground_truths/cloud", "images", ground_truth)
+        for ground_truth in all_ground_truths:
+            image_path = re.sub(r"ground_truths", "images", ground_truth)
             if image_path not in all_images:
                 raise ValueError(
-                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for cloud ground truth at path {os.path.abspath(ground_truth)}."
-                )
-        for ground_truth in all_bloom_ground_truths:
-            image_path = re.sub(r"ground_truths/bloom", "images", ground_truth)
-            if image_path not in all_images:
-                raise ValueError(
-                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for bloom ground truth at path {os.path.abspath(ground_truth)}."
+                    f"❌ Image at path {os.path.abspath(image_path)} does not exist for ground truth at path {os.path.abspath(ground_truth)}."
                 )
             
-        return all_images, all_cloud_ground_truths, all_bloom_ground_truths
+        return all_images, all_ground_truths
+    
+    def _get_pseudo_labelling_data(self) -> Tuple[List[str], List[str]]:
+        """
+        Get the paths of all images and ground truth images in the dataset.
+        
+        Returns:
+            Tuple[List[str], List[str]]: List of image paths and ground truth image paths.
+        """
+        all_jpg_files = get_paths_recursive(
+            folder_path=SKY_FINDER_ACTIVE_KEEP_PATH,
+            match_pattern="*.jpg",
+            path_type="f",
+            recursive=True,
+        )
+
+        datetime_pattern = re.compile(r'/\d{8}_\d{6}\.jpg$')
+        all_images = [path for path in all_jpg_files if datetime_pattern.search(path)]
+        
+        ground_truth_pattern = re.compile(r'/binary_\d{8}_\d{6}\.jpg$')
+        ground_truth_images = [path for path in all_jpg_files if ground_truth_pattern.search(path)]
+
+        print(f"✅ Found {len(all_images)} images and {len(ground_truth_images)} ground truth images.")
+        return all_images, ground_truth_images
 
 
     def __init__(
         self,
         path: str,
         use_augmentations: bool,
+        with_pseudo_labelling: bool,
     ) -> None:
+        """
+        Initialize the SkyFinderCoverDataset class.
+        
+        Args:
+            path (str): Path to the dataset.
+            use_augmentations (bool): Whether to use augmentations.
+            with_pseudo_labelling (bool): Whether to use pseudo labelling.
+        """
         super(SkyFinderCoverDataset, self).__init__()
 
         self.path = path
         self.use_augmentations = use_augmentations
+        self.with_pseudo_labelling = with_pseudo_labelling
 
-        self.all_images, self.all_cloud_ground_truths, self.all_bloom_ground_truths = self._get_data(path)
+        self.all_images, self.all_ground_truths = self._get_data(path)
+
+        if with_pseudo_labelling:
+            self.all_pl_images, self.all_pl_ground_truths = self._get_pseudo_labelling_data()
+            self.all_images += self.all_pl_images
+            self.all_ground_truths += self.all_pl_ground_truths
 
         if use_augmentations:
             self.image_transform = A.Compose(
@@ -200,14 +219,12 @@ class SkyFinderCoverDataset(Dataset):
                     ),
                     A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
                 ],
-                additional_targets={'mask2': 'mask'},
             )
         else:
             self.transform = A.Compose(
                 [
                     A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
                 ],
-                additional_targets={'mask2': 'mask'},
             )
 
     def __len__(self) -> int:
@@ -246,10 +263,10 @@ class SkyFinderCoverDataset(Dataset):
         camera_id = int(image_path.split("/")[-2])
         mask_path = f"{SKY_FINDER_PATH}masks/{camera_id}.png"
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        mask = cv2.resize(mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
         mask = mask > (255 * 0.5)
         mask = np.expand_dims(mask, axis=-1)
         image = np.where(mask, image, 0)
-
 
         return image
     
@@ -281,30 +298,24 @@ class SkyFinderCoverDataset(Dataset):
     
     def __getitem__(self, idx: int):
         image_path = self.all_images[idx]
-        cloud_ground_truth_path = self.all_cloud_ground_truths[idx]
-        bloom_ground_truth_path = self.all_bloom_ground_truths[idx]
+        ground_truth_path = self.all_ground_truths[idx]
 
         # Load image and ground truth
         image = self._get_image(image_path)
-        cloud_ground_truth = self._get_ground_truth(cloud_ground_truth_path)
-        bloom_ground_truth = self._get_ground_truth(bloom_ground_truth_path)
+        ground_truth = self._get_ground_truth(ground_truth_path)
 
         # Apply transformations
-        transformed = self.transform(image=image, mask=cloud_ground_truth, mask2=bloom_ground_truth)
+        transformed = self.transform(image=image, mask=ground_truth)
         image = transformed["image"]
-        cloud_ground_truth = transformed["mask"]
-        bloom_ground_truth = transformed["mask2"]
+        ground_truth = transformed["mask"]
 
         image = self.image_transform(image=image)["image"]
-        cloud_ground_truth = self.ground_truth_transform(image=cloud_ground_truth)["image"]
-        bloom_ground_truth = self.ground_truth_transform(image=bloom_ground_truth)["image"]
-        cloud_ground_truth = cloud_ground_truth / 255.0
-        bloom_ground_truth = bloom_ground_truth / 255.0
+        ground_truth = self.ground_truth_transform(image=ground_truth)["image"]
+        ground_truth = ground_truth / 255.0
 
-        cloud_ground_truth = torch.where(cloud_ground_truth > 0.4, 1.0, 0.0).float()
-        bloom_ground_truth = torch.where(bloom_ground_truth > 0.4, 1.0, 0.0).float()
+        ground_truth = torch.where(ground_truth > 0.4, 1.0, 0.0).float()
 
-        return image, cloud_ground_truth, bloom_ground_truth
+        return image, ground_truth
     
 
 class SkyFinderCoverModule(pl.LightningDataModule):
@@ -312,12 +323,14 @@ class SkyFinderCoverModule(pl.LightningDataModule):
         self,
         batch_size: int,
         n_workers: int,
+        with_pseudo_labelling: bool,
         seed: Optional[int] = None,
     ) -> None:
         super(SkyFinderCoverModule, self).__init__()
 
         self.batch_size = batch_size
         self.n_workers = n_workers
+        self.with_pseudo_labelling = with_pseudo_labelling
         self.seed = seed
 
         self.train_dataset = None
@@ -334,16 +347,20 @@ class SkyFinderCoverModule(pl.LightningDataModule):
         if self.seed is not None:
             print(f"🌱 Setting the seed to {self.seed} for generating dataloaders.")
             set_seed(self.seed)
+        if self.with_pseudo_labelling:
+            print("➕ Using pseudo labelling for training.")
 
         # Create datasets
         if stage == "fit" or stage is None:
             self.train_dataset = SkyFinderCoverDataset(
                 path=f"{SKY_FINDER_COVER_PATH}train",
                 use_augmentations=True,
+                with_pseudo_labelling=self.with_pseudo_labelling,
             )
             self.val_dataset = SkyFinderCoverDataset(
                 path=f"{SKY_FINDER_COVER_PATH}val",
                 use_augmentations=False,
+                with_pseudo_labelling=self.with_pseudo_labelling,
             )
         if stage == "test" or stage is None:
             pass
