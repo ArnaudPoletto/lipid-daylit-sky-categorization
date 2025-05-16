@@ -4,7 +4,9 @@ The texture descriptor leverages the Sky Finder dataset [1], which contains a ri
 
 
 
-### 1.1 Sky Finder Dataset
+### 1.1 Dataset
+
+#### 1.1.1 Sky Finder Dataset
 
 The Sky Finder dataset comprises high-resolution outdoor images captured across various locations, weather conditions, and times of day. Our preprocessing involves:
 
@@ -14,9 +16,9 @@ The Sky Finder dataset comprises high-resolution outdoor images captured across 
     - **Overcast**: (8,777 images) Scenes with complete or near-complete cloud coverage.
 2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [3] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
 
+For experimental evaluation, the dataset is divided into training, validation, and test sets containing 12,894 (60%), 4,298 (20%), and 4,298 (20%) images, respectively.
 
-
-### 1.2 Pair Generation for Contrastive Learning
+#### 1.1.2 Pair Generation for Contrastive Learning
 
 Our contrastive learning framework relies on creating meaningful sample pairs:
 
@@ -30,6 +32,10 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
     <em>Figure 1: Pair generation process for contrastive learning. Each original image is cropped to remove the ground region, inpainted and augmented to create two images, which are then used as positive pairs.</em>
     </div>
 </div>
+
+
+
+### 1.2 Model Architecture
 
 
 
@@ -65,6 +71,7 @@ Our texture descriptor model was trained with the following hyperparameters and 
 This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful texture representations while remaining trainable on consumer-grade hardware.
 
 
+
 ### 1.5 Results
 
 The trained texture descriptor model is evaluated on the Sky Finder dataset, and the results are visualized using t-SNE [4]. The resulting plot illustrates how the model effectively clusters similar sky conditions together in the embedding space.
@@ -94,7 +101,7 @@ Parameters:
 - `-f`, `--force`: (Optional, default is false) Forces the download and generation of the dataset even if it already exists locally, ensuring you have the latest version.
 - `-r`, `--remove-data`: (Optional, default is false) Automatically removes the downloaded archive files and extracted files after successfully generating the processed dataset to save disk space.
 
-#### 1.5.2 Training the Texture Descriptor
+#### 1.6.2 Training the Texture Descriptor
 
 To train the texture descriptor model, execute the following commands:
 
@@ -105,7 +112,7 @@ python contrastive_net_train.py
 
 Model weights will be saved in the [data/models/contrastive_net](data/models/contrastive_net) directory.
 
-#### 1.5.3 Generating Sky Finder Embeddings
+#### 1.6.3 Generating Sky Finder Embeddings
 
 To generate the embeddings for the Sky Finder dataset, execute the following commands:
 
@@ -123,6 +130,85 @@ cd src/contrastive_net
 python plot_embeddings.py
 ```
 The generated plot will be saved in the [generated/embeddings_plot.png](generated/embeddings_plot.png) file.
+
+## 2. Sky Cover Descriptor
+
+The sky cover descriptor quantifies cloud coverage by performing regression-based segmentation of sky regions. This descriptor combines manually-labeled data from our repository with pseudo-labels derived from the Sky Finder dataset in an active learning framework. By estimating the cloud coverage percentage across all sky pixels, it provides a single numerical representation of sky conditions.
+
+
+
+### 2.1 Datasets
+
+#### 2.1.1 Sky Finder Cover Dataset
+
+The Sky Finder Cover Dataset is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
+
+The dataset was created through a meticulous annotation process:
+1. **Selection**: Representative images were selected from each sky condition category to ensure diversity.
+2. **Manual Segmentation**: Annotators created pixel-precise binary masks, where each pixel is labeled as either overcast (white), partially covered (gray) or clear sky/ground (0).
+
+For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively.
+
+#### 2.1.2 Sky Finder Active Dataset
+
+The Sky Finder Active Dataset leverages an active learning approach to expand the training data through high-confidence pseudo-labels:
+
+1. **Initial Model Training**: A sky cover model was first trained on the manually annotated Sky Finder Cover Dataset, as detailed in Section 2.4.
+2. **Pseudo-Label Generation**:
+    - The trained model was applied to unlabeled images from the Sky Finder Dataset.
+    - Prediction uncertainty was quantified using pixel-wise entropy measurements.
+    - Only predictions with low entropy (high confidence) were selected.
+
+For experimental evaluation, the training set was augmented with these 377 pseudo-labeled images, while the validation set remained unchanged, consisting of the same 58 manually annotated images from the Sky Finder Cover Dataset.
+
+
+
+### 2.2 Model Architecture
+
+The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone pretrained on ImageNet1K_V2 serving as the encoder. The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation, followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud segmentation. This architecture effectively combines the robust feature extraction capabilities of ResNet50 with the precise localization abilities of the U-Net framework.
+
+
+
+### 2.3 Training Objective
+
+The training objective combines Focal Loss and Dice Loss to effectively handle class imbalance and optimize boundary segmentation:
+
+$$\mathcal{L} = \mathcal{L}_{\text{Focal}} + \mathcal{L}_{\text{Dice}}$$
+
+Where $\mathcal{L}_{\text{Focal}}$ is defined with $\alpha=0.5$ and $\gamma=2.0$ to focus on hard-to-classify examples:
+
+$$\mathcal{L}_{\text{Focal}} = -\alpha(1-p_t)^\gamma\log(p_t)$$
+
+And $\mathcal{L}_{\text{Dice}}$ optimizes overlap between predicted and ground truth segmentations:
+
+$$\mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
+
+This combined loss function balances pixel-wise classification accuracy with structural similarity, producing good cloud segmentation results.
+
+
+
+### 2.4 Training Procedure
+
+Our sky cover descriptor model was trained with the following hyperparameters and configuration:
+
+- **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
+- **Batch Configuration**: 2 batches.
+- **Training Duration**: 40 epochs.
+- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
+- **Hardware**: Single NVIDIA RTX 3080 GPU with 10GB of memory.
+- **Dropout Rate**: 0.1 for bottleneck and 0.25 for decoder.
+
+This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful cloud segmentation representations while preventing overfitting.
+
+
+
+### 2.5 Results
+
+
+
+### 2.6 Reproduction Procedure
+
+
 
 ## References
 
