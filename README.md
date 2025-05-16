@@ -173,7 +173,7 @@ The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone p
 
 The training objective combines Focal Loss and Dice Loss to effectively handle class imbalance and optimize boundary segmentation:
 
-$$\mathcal{L}_{\text{Focal}}+ \mathcal{L}_{\text{Focal}}$$
+$$\mathcal{L}_{\text{Focal}}+ \mathcal{L}_{Focal}$$
 
 Where $\mathcal{L}_{\text{Focal}}$ is defined with $\alpha=0.5$ and $\gamma=2.0$ to focus on hard-to-classify examples:
 
