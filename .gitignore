@@ -11,7 +11,8 @@ data/sky_finder/val/
 data/sky_finder/archives/
 data/sky_finder/extracted/
 data/sky_finder/images/
-data/sky_cover/
+data/sky_finder_cover/
+data/sky_finder_active
 
 generated/embeddings.json
 
