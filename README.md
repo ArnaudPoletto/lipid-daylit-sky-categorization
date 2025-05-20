@@ -165,7 +165,7 @@ For experimental evaluation, the training set was augmented with these 377 pseud
 
 ### 2.2 Model Architecture
 
-The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone pretrained on ImageNet1K_V2 serving as the encoder. The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation, followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud segmentation. This architecture effectively combines the robust feature extraction capabilities of ResNet50 with the precise localization abilities of the U-Net framework.
+The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone pretrained on ImageNet1K_V2 serving as the encoder. The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation, followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud segmentation.
 
 
 
@@ -204,11 +204,60 @@ This configuration provides a good balance between performance and computational
 
 ### 2.5 Results
 
+2.5 Results
+The sky cover descriptor model was evaluated on the Sky Finder Cover Dataset validation set, comparing the initial model trained on manually annotated data against the active learning enhanced model. Table 1 presents the quantitative evaluation using standard segmentation metrics.
+
+| Model | IoU | Dice Score | Pixel Accuracy | Cloud Cover Error |
+|-------|-----|------------|----------------|-------------------|
+| Initial (Manual Labels) | 0.5418 | 0.6055 | 0.9067 | 0.6055 |
+| Active Learning Enhanced | 0.5570 | 0.6325 | 0.8867 | 0.5808 |
+
+*Table 1: Performance comparison between initial model trained on manually labeled data only and the active learning enhanced model with pseudo-labels. Cloud Cover Error represents the mean absolute percentage error in estimating cloud coverage.*
+
+<div align="center">
+    <img src="generated/cover_results.png" alt="Embeddings plot" align="center" width="80%">
+    <div align="center">
+    <em>Figure 3: Visual comparison of cloud segmentation results. From left to right: original input images, ground truth segmentation masks, predictions from the baseline model trained on manual annotations only, and predictions from our active learning enhanced model.</em>
+    </div>
+</div>
+
 
 
 ### 2.6 Reproduction Procedure
 
+#### 2.6.1 Training the Initial Sky Cover Model
 
+To train the initial sky cover model on the manually annotated dataset, execute the following commands:
+
+```bash
+cd src/unet
+python unet_train.py
+```
+
+Model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline.ckpt](data/models/unet/baseline.ckpt).
+
+#### 2.6.2 Active Learning Enhancement
+
+To enhance the model using the active learning approach with pseudo-labels, execute the following commands:
+
+```bash
+cd src/unet
+python unet_train.py -a
+```
+
+Parameters:
+- `-a`, `--active`: Enables active learning using the previously trained model checkpoint for pseudo-label generation.
+
+The enhanced model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline_active.ckpt](data/models/unet/baseline_active.ckpt).
+
+#### 2.6.3 Evaluating the Sky Cover Model
+
+To evaluate the performance of the trained models, execute:
+
+```bash
+cd src/unet
+python unet_eval.py -c <checkpoint_path>
+```
 
 ## References
 
