@@ -65,6 +65,12 @@ class UNetLightningModel(pl.LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the model.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
         """
         return self.model(x)
 

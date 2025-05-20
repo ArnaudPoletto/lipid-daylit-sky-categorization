@@ -1,8 +1,7 @@
 import random
 import torch
 import numpy as np
-from torch.utils.data.sampler import RandomSampler
-from typing import Optional, Iterator, Sized, Any
+from typing import Iterator, Any
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -60,10 +59,7 @@ class SeededDataLoader(DataLoader):
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(self.seed)
 
-        # Get iterator from parent class
         iterator = super().__iter__()
-
-        # Yield all elements
         try:
             yield from iterator
         finally:

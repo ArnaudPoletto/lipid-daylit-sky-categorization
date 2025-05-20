@@ -60,7 +60,7 @@ This loss function encourages the model to learn representations where similar s
 
 Our texture descriptor model was trained with the following hyperparameters and configuration:
 
-- **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
+- **Optimizer**: AdamW with a learning rate of $10^{-4}$ and weight decay of $10^{-4}$.
 - **Embedding Dimension**: 16 (latent space dimension at the end of the MLP head).
 - **Batch Configuration**: 2 batches with 3 pairs per batch ($N=3$).
 - **Training Duration**: 4 epochs.
@@ -173,7 +173,7 @@ The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone p
 
 The training objective combines Focal Loss and Dice Loss to effectively handle class imbalance and optimize boundary segmentation:
 
-$$\mathcal{L}_{\text{Focal}}+ \mathcal{L}_{Focal}$$
+$$\mathcal{L}_{\text{Focal}}+ \mathcal{L}_{\text{Focal}}$$
 
 Where $\mathcal{L}_{\text{Focal}}$ is defined with $\alpha=0.5$ and $\gamma=2.0$ to focus on hard-to-classify examples:
 

@@ -51,23 +51,17 @@ class MeanPatches(ImageOnlyTransform):
 
         # Add random patches
         num_to_add = random.randint(self.num_patches[0], self.num_patches[1])
-
         for _ in range(num_to_add):
-            # Random patch size
             patch_h = random.randint(self.patch_size[0], self.patch_size[1])
             patch_w = random.randint(self.patch_size[0], self.patch_size[1])
-
-            # Random position
             y = random.randint(0, height - patch_h)
             x = random.randint(0, width - patch_w)
 
+            # Fill the patch with mean values
             if self.use_image_mean:
                 mean_value = global_mean
             else:
-                # Calculate mean of the patch area
                 mean_value = np.mean(img[y : y + patch_h, x : x + patch_w], axis=(0, 1))
-
-            # Fill the patch with mean values
             img_copy[y : y + patch_h, x : x + patch_w] = mean_value
 
         return img_copy

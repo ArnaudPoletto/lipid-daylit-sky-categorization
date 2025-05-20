@@ -4,12 +4,12 @@ import torch.nn as nn
 
 class NTXentLoss(nn.Module):
     """
-    Implementation of the Normalized Temperature-Scaled Cross Entropy Loss (NT-Xent).
+    Normalized Temperature-Scaled Cross Entropy Loss (NT-Xent).
     """
 
     def __init__(self, temperature=0.5) -> None:
         """
-        Initialize the NTXentLoss module.
+        Initialize the NT-Xent loss.
 
         Args:
             temperature (float): Temperature scaling factor for the loss.

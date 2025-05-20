@@ -1,13 +1,12 @@
 import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 import time
 import torch
 import argparse
-import torch.nn as nn
 import lightning.pytorch as pl
-import torchvision.models.segmentation as models
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -33,7 +32,11 @@ WEIGHT_DECAY = 1e-4
 BOTTLENECK_DROPOUT_RATE = 0.1
 DECODER_DROPOUT_RATE = 0.25
 
+
 def parse_args() -> None:
+    """
+    Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(description="Train UNet model.")
 
     parser.add_argument(
@@ -45,10 +48,10 @@ def parse_args() -> None:
 
     return parser.parse_args()
 
+
 def main() -> None:
     args = parse_args()
     active = args.active
-
 
     set_seed(SEED)
     torch.set_float32_matmul_precision("high")

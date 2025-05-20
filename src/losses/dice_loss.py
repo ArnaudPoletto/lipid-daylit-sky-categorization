@@ -1,6 +1,3 @@
-# This file contains the Dice loss.
-# From: https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

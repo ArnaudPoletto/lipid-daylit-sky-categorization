@@ -15,7 +15,7 @@ from src.config import (
 
 class ContrastiveLightningModel(pl.LightningModule):
     """
-    Lightning model for training and evaluating a neural network model.
+    Lightning model for training and evaluating a contrastive learning model.
     """
 
     def __init__(
@@ -63,11 +63,17 @@ class ContrastiveLightningModel(pl.LightningModule):
         """
         self.model.eval()
 
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the model. This method is not used.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
         """
-        pass
+        return self.model(x)
 
     def _shared_step(self, batch: torch.Tensor, step_type: str) -> torch.Tensor:
         """

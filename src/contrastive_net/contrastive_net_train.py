@@ -1,5 +1,6 @@
 import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 import time
@@ -30,7 +31,6 @@ WEIGHT_DECAY = 1e-4
 
 def main() -> None:
     set_seed(SEED)
-
     torch.set_float32_matmul_precision("high")
 
     # Get model

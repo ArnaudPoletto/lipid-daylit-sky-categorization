@@ -19,7 +19,6 @@ from src.models.contrastive_net import ContrastiveNet
 from src.lightning_models.contrastive_lightning_model import ContrastiveLightningModel
 from src.utils.file import get_paths_recursive
 from src.config import (
-    SKY_FINDER_IMAGES_PATH,
     EMBEDDINGS_FILE_PATH,
     CONTRASTIVE_CHECKPOINT_PATH,
     PROJECTION_DIM,

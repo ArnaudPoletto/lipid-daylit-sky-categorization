@@ -26,12 +26,14 @@ class ContrastiveNet(nn.Module):
         """
         super().__init__()
 
+        # Use ResNet50 as backbone encoder
         if pretrained:
             weights = ResNet50_Weights.DEFAULT
             self.backbone = resnet50(weights=weights)
         else:
             self.backbone = resnet50(weights=None)
 
+            # Change classification head by a new projection head
         hidden_dim = self.backbone.fc.in_features
         self.backbone.fc = nn.Identity()
         self.projector = nn.Sequential(

@@ -23,9 +23,10 @@ from src.config import (
     SKY_FINDER_ACTIVE_KEEP_PATH,
 )
 
+
 class SkyFinderCoverDataset(Dataset):
     """
-    Sky Finder cover dataset for training pixel-wise regression models.
+    Sky Finder cover dataset.
     """
 
     def _get_data(
@@ -34,10 +35,10 @@ class SkyFinderCoverDataset(Dataset):
     ) -> Tuple[List[str], List[str], List[str]]:
         """
         Get the paths of all images and ground truths in the dataset.
-        
+
         Args:
             path (str): Path to the dataset.
-            
+
         Returns:
             Tuple[List[str], List[str], List[str]]: Paths to all images and ground truths.
 
@@ -86,13 +87,13 @@ class SkyFinderCoverDataset(Dataset):
                 raise ValueError(
                     f"❌ Image at path {os.path.abspath(image_path)} does not exist for ground truth at path {os.path.abspath(ground_truth)}."
                 )
-            
+
         return all_images, all_ground_truths
-    
+
     def _get_pseudo_labelling_data(self) -> Tuple[List[str], List[str]]:
         """
         Get the paths of all images and ground truth images in the dataset.
-        
+
         Returns:
             Tuple[List[str], List[str]]: List of image paths and ground truth image paths.
         """
@@ -103,15 +104,18 @@ class SkyFinderCoverDataset(Dataset):
             recursive=True,
         )
 
-        datetime_pattern = re.compile(r'/\d{8}_\d{6}\.jpg$')
+        datetime_pattern = re.compile(r"/\d{8}_\d{6}\.jpg$")
         all_images = [path for path in all_jpg_files if datetime_pattern.search(path)]
-        
-        ground_truth_pattern = re.compile(r'/binary_\d{8}_\d{6}\.jpg$')
-        ground_truth_images = [path for path in all_jpg_files if ground_truth_pattern.search(path)]
 
-        print(f"✅ Found {len(all_images)} images and {len(ground_truth_images)} ground truth images.")
+        ground_truth_pattern = re.compile(r"/binary_\d{8}_\d{6}\.jpg$")
+        ground_truth_images = [
+            path for path in all_jpg_files if ground_truth_pattern.search(path)
+        ]
+
+        print(
+            f"✅ Found {len(all_images)} images and {len(ground_truth_images)} ground truth images."
+        )
         return all_images, ground_truth_images
-
 
     def __init__(
         self,
@@ -121,7 +125,7 @@ class SkyFinderCoverDataset(Dataset):
     ) -> None:
         """
         Initialize the SkyFinderCoverDataset class.
-        
+
         Args:
             path (str): Path to the dataset.
             use_augmentations (bool): Whether to use augmentations.
@@ -136,7 +140,9 @@ class SkyFinderCoverDataset(Dataset):
         self.all_images, self.all_ground_truths = self._get_data(path)
 
         if with_pseudo_labelling:
-            self.all_pl_images, self.all_pl_ground_truths = self._get_pseudo_labelling_data()
+            self.all_pl_images, self.all_pl_ground_truths = (
+                self._get_pseudo_labelling_data()
+            )
             self.all_images += self.all_pl_images
             self.all_ground_truths += self.all_pl_ground_truths
 
@@ -155,25 +161,26 @@ class SkyFinderCoverDataset(Dataset):
                     A.RandomGamma(gamma_limit=(80, 120), p=0.5),
                     A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.3),
                     A.GaussNoise(std_range=(0.0, 0.1), p=0.3),
-                    A.OneOf([
-                        A.MotionBlur(blur_limit=5, p=0.5),
-                        A.MedianBlur(blur_limit=5, p=0.5),
-                        A.GaussianBlur(blur_limit=5, p=0.5),
-                    ], p=0.3),
-
+                    A.OneOf(
+                        [
+                            A.MotionBlur(blur_limit=5, p=0.5),
+                            A.MedianBlur(blur_limit=5, p=0.5),
+                            A.GaussianBlur(blur_limit=5, p=0.5),
+                        ],
+                        p=0.3,
+                    ),
                     A.RandomFog(
                         fog_coef_range=(0.1, 0.3),
                         p=0.2,
                     ),
                     A.RandomSunFlare(
-                        flare_roi=(0, 0, 1, 0.5), 
-                        src_radius=100, 
-                        src_color=(255, 255, 255), 
-                        angle_range=(0, 1), 
+                        flare_roi=(0, 0, 1, 0.5),
+                        src_radius=100,
+                        src_color=(255, 255, 255),
+                        angle_range=(0, 1),
                         num_flare_circles_range=(1, 3),
                         p=0.2,
                     ),
-
                     A.Normalize(
                         mean=(0.485, 0.456, 0.406),
                         std=(0.229, 0.224, 0.225),
@@ -215,7 +222,7 @@ class SkyFinderCoverDataset(Dataset):
                         size=(SKY_COVER_HEIGHT, SKY_COVER_WIDTH),
                         scale=(0.8, 1.0),
                         ratio=(0.9, 1.1),
-                        p=0.5
+                        p=0.5,
                     ),
                     A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
                 ],
@@ -235,7 +242,7 @@ class SkyFinderCoverDataset(Dataset):
             int: Total number of images in the dataset.
         """
         return len(self.all_images)
-    
+
     def _get_image(self, image_path: str) -> np.ndarray:
         """
         Load an image from the given path and convert it to RGB format.
@@ -263,13 +270,15 @@ class SkyFinderCoverDataset(Dataset):
         camera_id = int(image_path.split("/")[-2])
         mask_path = f"{SKY_FINDER_PATH}masks/{camera_id}.png"
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        mask = cv2.resize(mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
+        mask = cv2.resize(
+            mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST
+        )
         mask = mask > (255 * 0.5)
         mask = np.expand_dims(mask, axis=-1)
         image = np.where(mask, image, 0)
 
         return image
-    
+
     def _get_ground_truth(
         self,
         ground_truth_path: str,
@@ -295,8 +304,17 @@ class SkyFinderCoverDataset(Dataset):
             )
 
         return ground_truth
-    
-    def __getitem__(self, idx: int):
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get a sample from the dataset.
+
+        Args:
+            idx (int): The index of the sample.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The image and ground truth tensors.
+        """
         image_path = self.all_images[idx]
         ground_truth_path = self.all_ground_truths[idx]
 
@@ -316,9 +334,13 @@ class SkyFinderCoverDataset(Dataset):
         ground_truth = torch.where(ground_truth > 0.4, 1.0, 0.0).float()
 
         return image, ground_truth
-    
+
 
 class SkyFinderCoverModule(pl.LightningDataModule):
+    """
+    Sky Finder cover data module.
+    """
+
     def __init__(
         self,
         batch_size: int,
@@ -326,6 +348,15 @@ class SkyFinderCoverModule(pl.LightningDataModule):
         with_pseudo_labelling: bool,
         seed: Optional[int] = None,
     ) -> None:
+        """
+        Initialize the SkyFinderCoverModule class.
+
+        Args:
+            batch_size (int): Batch size for the dataloaders.
+            n_workers (int): Number of workers for the dataloaders.
+            with_pseudo_labelling (bool): Whether to use pseudo labelling.
+            seed (Optional[int]): Seed for random number generation.
+        """
         super(SkyFinderCoverModule, self).__init__()
 
         self.batch_size = batch_size
@@ -402,5 +433,8 @@ class SkyFinderCoverModule(pl.LightningDataModule):
     def test_dataloader(self) -> Optional[DataLoader]:
         """
         Returns the test dataloader.
+
+        Returns:
+            Optional[DataLoader]: The test dataloader, none by default.
         """
         return None

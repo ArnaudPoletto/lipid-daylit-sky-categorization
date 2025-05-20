@@ -6,18 +6,12 @@ import torch.nn.functional as F
 class FocalLoss(nn.Module):
     """
     Focal Loss.
-    
-    Focal loss is designed to address class imbalance by down-weighting easy examples
-    and focusing training on hard examples.
-    
-    Formula: FL(p_t) = -alpha * (1 - p_t)^gamma * log(p_t)
-    where p_t is the predicted probability of the target class.
     """
 
     def __init__(
-        self, 
-        alpha: float, 
-        gamma: float, 
+        self,
+        alpha: float,
+        gamma: float,
     ) -> None:
         """
         Initialize the Focal loss.
@@ -31,9 +25,7 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
         self.eps = 1e-6
 
-    def forward(
-        self, inputs: torch.Tensor, targets: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
 
@@ -47,32 +39,32 @@ class FocalLoss(nn.Module):
         # Apply sigmoid to get probabilities
         inputs = F.sigmoid(inputs)
         inputs = torch.clamp(inputs, min=self.eps, max=1.0 - self.eps)
-        
+
         # Flatten inputs and targets
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        
+
         # Calculate BCE loss
-        bce_loss = F.binary_cross_entropy(inputs, targets, reduction='none')
-        
+        bce_loss = F.binary_cross_entropy(inputs, targets, reduction="none")
+
         # Calculate the focal weight
         if targets.dtype != torch.float32:
             targets = targets.type(torch.float32)
-            
+
         # Calculate p_t - probability of the target class
         p_t = inputs * targets + (1 - inputs) * (1 - targets)
-        
+
         # Calculate focal weight
         focal_weight = (1 - p_t) ** self.gamma
-        
+
         # Apply alpha weighting
         if self.alpha is not None:
             # Apply alpha weight to focal weight
             # Alpha for target=1, (1-alpha) for target=0
             alpha_weight = self.alpha * targets + (1 - self.alpha) * (1 - targets)
             focal_weight = alpha_weight * focal_weight
-            
+
         # Calculate focal loss
         focal_loss = focal_weight * bce_loss
-        
+
         return focal_loss.mean()

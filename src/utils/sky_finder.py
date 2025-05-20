@@ -13,6 +13,7 @@ from src.config import (
     SKY_FINDER_SKY_CLASSES,
 )
 
+
 def get_splitted_sky_finder_paths_dict() -> Tuple[
     Dict[str, Dict[str, List[str]]],
     Dict[str, Dict[str, List[str]]],
@@ -32,6 +33,7 @@ def get_splitted_sky_finder_paths_dict() -> Tuple[
 
     return train_paths_dict, val_paths_dict, test_paths_dict
 
+
 def get_sky_finder_paths_dict(split: str) -> Dict[str, Dict[str, List[str]]]:
     """
     Initialize the paths dictionary for the dataset.
@@ -50,7 +52,7 @@ def get_sky_finder_paths_dict(split: str) -> Dict[str, Dict[str, List[str]]]:
         raise ValueError(
             f"❌ Invalid directory name {split}. Must be 'train', 'val' or 'test'."
         )
-    
+
     paths_dict = {}
     for sky_class in SKY_FINDER_SKY_CLASSES:
         paths_dict[sky_class] = {}

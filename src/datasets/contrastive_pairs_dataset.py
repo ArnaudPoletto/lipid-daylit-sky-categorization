@@ -2,7 +2,6 @@ import os
 import sys
 import cv2
 import torch
-import random
 import numpy as np
 import albumentations as A
 import lightning.pytorch as pl
@@ -18,20 +17,19 @@ from src.transformations.mean_patches import MeanPatches
 from src.utils.sky_finder import (
     get_sky_finder_masks,
     get_sky_finder_bounding_boxes,
-    get_splitted_sky_finder_paths_dict
+    get_splitted_sky_finder_paths_dict,
 )
 from src.config import (
     EPOCH_MULTIPLIERS,
     SKY_FINDER_WIDTH,
     SKY_FINDER_HEIGHT,
     N_PAIRS,
-    SKY_FINDER_SPLITS,
 )
 
 
 class ContrastivePairsDataset(Dataset):
     """
-    Contrastive pairs dataset for training contrastive learning models.
+    Contrastive pairs dataset.
     """
 
     def _create_balanced_indices(
@@ -107,14 +105,14 @@ class ContrastivePairsDataset(Dataset):
         n_pairs: int = 3,
     ) -> None:
         """
-        Initialize the ContrastivePairsDataset class.
+        Initialize the contrastive pairs dataset.
 
         Args:
             epoch_multiplier (int): The average number of images to sample from a single class-camera pair in each epoch.
             n_pairs (int): The number of pairs to sample for each image.
         """
         super(ContrastivePairsDataset, self).__init__()
-        
+
         self.paths_dict = paths_dict
         self.epoch_multiplier = epoch_multiplier
         self.n_pairs = n_pairs
@@ -159,16 +157,12 @@ class ContrastivePairsDataset(Dataset):
 
         return image
 
-    def _get_patch(
-        image: np.ndarray,
-        patch_ratio: float = SKY_FINDER_WIDTH / SKY_FINDER_HEIGHT,
-    ) -> np.ndarray:
+    def _get_patch(image: np.ndarray) -> np.ndarray:
         """
         Get a patch from the image with random transformations.
 
         Args:
             image (np.ndarray): The input image.
-            patch_ratio (float): The aspect ratio of the patch.
 
         Returns:
             np.ndarray: The transformed patch.
@@ -194,15 +188,16 @@ class ContrastivePairsDataset(Dataset):
                     p=1.0,
                 ),
                 A.RandomGamma(gamma_limit=(80, 120), p=0.5),
-
                 A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=0.3),
                 A.GaussNoise(std_range=(0.0, 0.1), p=0.3),
-                A.OneOf([
-                    A.MotionBlur(blur_limit=5, p=0.5),
-                    A.MedianBlur(blur_limit=5, p=0.5),
-                    A.GaussianBlur(blur_limit=5, p=0.5),
-                ], p=0.3),
-
+                A.OneOf(
+                    [
+                        A.MotionBlur(blur_limit=5, p=0.5),
+                        A.MedianBlur(blur_limit=5, p=0.5),
+                        A.GaussianBlur(blur_limit=5, p=0.5),
+                    ],
+                    p=0.3,
+                ),
                 A.ElasticTransform(
                     alpha=1,
                     sigma=50,
@@ -212,11 +207,9 @@ class ContrastivePairsDataset(Dataset):
                     scale=(0.05, 0.1),
                     p=0.5,
                 ),
-
                 MeanPatches(
                     num_patches=(2, 5), patch_size=(50, 150), use_image_mean=True, p=0.7
                 ),
-
                 A.Normalize(
                     mean=(0.485, 0.456, 0.406),
                     std=(0.229, 0.224, 0.225),
@@ -275,7 +268,7 @@ class ContrastivePairsDataset(Dataset):
             idx (int): The index of the sample.
 
         Returns:
-            torch.Tensor: The processed image patch.
+            torch.Tensor: The processed image patch pair.
         """
         # Get n_pairs image indexes, without replacement
         sampled_idx = np.random.choice(
@@ -304,7 +297,7 @@ class ContrastivePairsDataset(Dataset):
 
 class ContrastivePairsModule(pl.LightningDataModule):
     """
-    Contrastive Pairs Data Module for training contrastive learning models.
+    Contrastive pairs data module.
     """
 
     def __init__(
@@ -314,7 +307,7 @@ class ContrastivePairsModule(pl.LightningDataModule):
         seed: Optional[int] = None,
     ) -> None:
         """
-        Initialize the ContrastivePairsModule class.
+        Initialize the contrastive pairs data module.
 
         Args:
             batch_size (int): The batch size for the dataloaders.
@@ -331,7 +324,9 @@ class ContrastivePairsModule(pl.LightningDataModule):
         self.val_dataset = None
         self.test_dataset = None
 
-        train_paths_dict, val_paths_dict, test_paths_dict = get_splitted_sky_finder_paths_dict()
+        train_paths_dict, val_paths_dict, test_paths_dict = (
+            get_splitted_sky_finder_paths_dict()
+        )
         self.train_paths_dict = train_paths_dict
         self.val_paths_dict = val_paths_dict
         self.test_paths_dict = test_paths_dict
