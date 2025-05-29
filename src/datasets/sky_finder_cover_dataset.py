@@ -16,9 +16,9 @@ from src.utils.random import set_seed
 from src.utils.random import SeededDataLoader
 from src.utils.file import get_paths_recursive
 from src.config import (
-    SKY_COVER_WIDTH,
+    SKY_FINDER_WIDTH,
     SKY_FINDER_PATH,
-    SKY_COVER_HEIGHT,
+    SKY_FINDER_HEIGHT,
     SKY_FINDER_COVER_PATH,
     SKY_FINDER_ACTIVE_KEEP_PATH,
 )
@@ -219,18 +219,18 @@ class SkyFinderCoverDataset(Dataset):
                         p=0.5,
                     ),
                     A.RandomResizedCrop(
-                        size=(SKY_COVER_HEIGHT, SKY_COVER_WIDTH),
+                        size=(SKY_FINDER_HEIGHT, SKY_FINDER_WIDTH),
                         scale=(0.8, 1.0),
                         ratio=(0.9, 1.1),
                         p=0.5,
                     ),
-                    A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
+                    A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
                 ],
             )
         else:
             self.transform = A.Compose(
                 [
-                    A.Resize(height=SKY_COVER_HEIGHT, width=SKY_COVER_WIDTH, p=1.0),
+                    A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
                 ],
             )
 

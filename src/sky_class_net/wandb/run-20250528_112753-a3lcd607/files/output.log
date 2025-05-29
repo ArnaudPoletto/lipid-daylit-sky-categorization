@@ -1,0 +1,78 @@
+🌱 Setting the seed to 0 for generating dataloaders.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name  | Type        | Params | Mode
+----------------------------------------------
+0 | model | SkyClassNet | 195    | train
+----------------------------------------------
+195       Trainable params
+0         Non-trainable params
+195       Total params
+0.001     Total estimated model params size (MB)
+8         Modules in train mode
+0         Modules in eval mode
+Sanity Checking: |                                                                                                                                                                                                          | 0/? [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\arnau\work\lipid_internship\git\src\sky_class_net\sky_class_train.py", line 92, in <module>
+    main()
+  File "C:\Users\arnau\work\lipid_internship\git\src\sky_class_net\sky_class_train.py", line 85, in main
+    trainer.fit(
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\trainer.py", line 561, in fit
+    call._call_and_handle_interrupt(
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\call.py", line 48, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\trainer.py", line 599, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\trainer.py", line 1012, in _run
+    results = self._run_stage()
+              ^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\trainer.py", line 1054, in _run_stage
+    self._run_sanity_check()
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\trainer\trainer.py", line 1083, in _run_sanity_check
+    val_loop.run()
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\loops\utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\loops\evaluation_loop.py", line 138, in run
+    batch, batch_idx, dataloader_idx = next(data_fetcher)
+                                       ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\loops\fetchers.py", line 134, in __next__
+    batch = super().__next__()
+            ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\loops\fetchers.py", line 61, in __next__
+    batch = next(self.iterator)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\utilities\combined_loader.py", line 341, in __next__
+    out = next(self._iterator)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\lightning\pytorch\utilities\combined_loader.py", line 142, in __next__
+    out = next(self.iterators[0])
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\src\utils\random.py", line 64, in __iter__
+    yield from iterator
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\dataloader.py", line 708, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\dataloader.py", line 1480, in _next_data
+    return self._process_data(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\dataloader.py", line 1505, in _process_data
+    data.reraise()
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\_utils.py", line 733, in reraise
+    raise exception
+KeyError: Caught KeyError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\_utils\worker.py", line 349, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\_utils\fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\.conda\Lib\site-packages\torch\utils\data\_utils\fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "C:\Users\arnau\work\lipid_internship\git\src\datasets\sky_finder_embeddings_dataset.py", line 83, in __getitem__
+    input_data = np.array(descriptors["contrastive_embeddings"] + [descriptors["cover_prediction"]], dtype=np.float32)
+                          ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'contrastive_embeddings'

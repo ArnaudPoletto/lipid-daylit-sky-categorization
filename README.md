@@ -222,7 +222,6 @@ The sky cover descriptor model was evaluated on the Sky Finder Cover Dataset val
 </div>
 
 
-
 ### 2.6 Reproduction Procedure
 
 #### 2.6.1 Training the Initial Sky Cover Model
@@ -256,8 +255,134 @@ To evaluate the performance of the trained models, execute:
 
 ```bash
 cd src/unet
-python unet_eval.py -c <checkpoint_path>
+python unet_eval.py
 ```
+
+## 3. Classification Head for Downstream Task
+
+The classification head serves as the final component for sky condition classification, combining the texture and cover descriptors to classify images into clear, partial, and overcast scenes. This downstream task evaluates the effectiveness of our feature extraction methods in a practical sky classification scenario.
+
+### 3.1 Dataset Preparation
+
+To create a robust classification dataset, we manually curated a subset of the Sky Finder dataset with the following preprocessing steps:
+
+1. **Manual Labeling**: We manually labeled a comprehensive subset of Sky Finder images, ensuring accurate ground truth for the three sky conditions.
+2. **Night Sky Removal**: Night sky images were systematically removed from the dataset as they introduce significant lighting variations that could confound the classification task and are less relevant for most practical applications.
+
+The final curated dataset maintains the same class distribution as reported earlier: Clear (6,335 images), Partial (6,378 images), and Overcast (8,777 images).
+
+### 3.2 Model Architecture
+
+The classification head employs a simple 3-layer fully connected network with dropout and ReLU activations between layers.
+
+The network accepts either:
+- **16-dimensional input**: Texture embeddings from the contrastive learning model
+- **17-dimensional input**: Combined texture embeddings ($16D$) + cover prediction scalar ($1D$)
+- **1-dimensional input**: Cover prediction alone for baseline comparison
+
+### 3.3 Experimental Results
+
+Our comprehensive evaluation reveals significant insights about the effectiveness of different descriptor combinations:
+
+#### 3.3.1 Performance Comparison
+
+| Configuration | Train Accuracy | Val Accuracy | Test Accuracy | Train F1 | Val F1 | Test F1 |
+|---------------|----------------|--------------|---------------|----------|--------|---------|
+| **ALL** (Texture + Cover Prediction) | 0.9133 | 0.9050 | 0.9100 | 0.9100 | 0.8956 | 0.9021 |
+| **CONTRASTIVE_ONLY** (Texture) | **0.9209** | **0.9069** | **0.9144** | **0.9170** | **0.8977** | **0.9052** |
+| **COVER_ONLY** (Cover Prediction) | 0.7681 | 0.7923 | 0.7852 | 0.0000 | 0.0000 | 0.0000 |
+
+#### 3.3.2 Key Findings
+
+1. **Contrastive Learning Superiority**: The texture descriptor derived from contrastive learning demonstrates exceptional performance, achieving the highest accuracy and F1 scores across all evaluation splits. This validates our hypothesis that contrastive learning effectively captures discriminative sky condition features.
+
+2. **Cover Prediction Limitations**: The cover prediction alone shows a critical failure mode - complete inability to classify partial sky conditions (F1 = 0.0000). The confusion matrices reveal that the model defaults to binary classification, never predicting the partial class.
+
+3. **No Synergistic Effect**: Combining texture and cover descriptors does not improve performance over using texture features alone, suggesting that the contrastive learning approach already captures the essential characteristics needed for sky classification.
+
+#### 3.3.3 Analysis of Cover Prediction Failure
+
+<div align="center">
+    <img src="generated/cover_prediction_ranges.png" alt="Cover prediction ranges" align="center" width="80%">
+    <div align="center">
+    <em>Figure 4: Distribution of cover prediction values across sky condition classes. The substantial overlap between partial and overcast classes explains the classification difficulties.</em>
+    </div>
+</div>
+
+The visualization of cover prediction ranges reveals a fundamental issue: the partial and overcast classes exhibit highly overlapping value distributions. This overlap can be attributed to several factors:
+
+1. **Texture Ambiguity**: Overcast skies often lack distinctive textures, presenting uniform gray appearances that vary primarily in brightness rather than structural patterns.
+2. **Lighting Variability**: The diverse range of lighting conditions in overcast scenes creates a continuum of cloud coverage appearances that are difficult to distinguish from partially cloudy conditions.
+
+### 3.4 Implications and Conclusions
+
+The experimental results provide several important insights for sky condition classification:
+
+1. **Contrastive Learning Effectiveness**: The superior performance of texture-only classification demonstrates that contrastive learning successfully learns implicit representations that encompass both textural and coverage characteristics without requiring explicit coverage quantification.
+
+2. **Feature Redundancy**: The lack of improvement when combining descriptors suggests that the contrastive learning approach already captures the relevant information provided by the cover prediction, making the additional descriptor redundant.
+
+3. **Practical Recommendation**: For deployment scenarios, using only the 16-dimensional texture embeddings provides the optimal balance of performance and computational efficiency.
+
+### 3.5 Reproduction Procedure
+
+#### 3.5.1 Generate Sky Finder Descriptors
+
+First, extract both texture and cover descriptors for the entire dataset:
+
+```bash
+cd src/classification
+python generate_sky_finder_descriptors.py
+```
+
+This will create a comprehensive descriptor file at [/generated/sky_finder_descriptors.json](/generated/sky_finder_descriptors.json) containing both texture embeddings and cover predictions for all images in the dataset.
+
+#### 3.5.2 Train Classification Models
+
+Train the classification head with different input configurations:
+
+```bash
+cd src/sky_class_net
+python sky_class_train.py
+python sky_class_train.py --contrastive-only
+python sky_class_train.py --cover-only
+```
+
+The model weights will be saved in the [data/models/sky_class_net](data/models/sky_class_net) directory. Manually rename and move the best checkpoint to [data/models/sky_class_net/all_baseline.ckpt](data/models/sky_class_net/all_baseline.ckpt), [data/models/sky_class_net/contrastive_only_baseline.ckpt](data/models/sky_class_net/contrastive_only_baseline.ckpt), and [data/models/sky_class_net/cover_only_baseline.ckpt](data/models/sky_class_net/cover_only_baseline.ckpt), respectively.
+
+#### 3.5.3 Evaluate Performance
+
+To generate the comprehensive evaluation metrics and confusion matrices, run:
+
+```bash
+cd src/sky_class_net
+python sky_class_eval.py
+```
+
+This will produce detailed performance metrics, confusion matrices, and visualizations for all model configurations, enabling direct comparison of the different approaches.
+
+# 4. Pipeline
+
+After these findings, we decide to only use the contrastive model and we will add other descriptors on our own initial video data. videos enable us to have temporal-based and motion-based descriptors that could improve describability of the skies.
+
+1. texture descriptor
+2. mean green value
+3. Optical flow
+4. mean diff green over consecutive frames
+
+# Reproducibility TODO
+
+create gsam2 folder in src
+cd gsam2
+copy from github repository git clone https://github.com/IDEA-Research/Grounded-SAM-2?tab=readme-ov-file
+remove root grounded-sam-2 to only have the gsam2 folder directly
+cd checkpoints
+bash download_ckpts.sh
+cd gdino_checkpoints
+bash download_ckpts.sh
+cd ..
+pip install -e .
+pip install --no-build-isolation -e grounding_dino
 
 ## References
 

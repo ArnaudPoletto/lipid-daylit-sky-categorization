@@ -44,6 +44,10 @@ SKY_FINDER_ACTIVE_KEEP_PATH = f"{SKY_FINDER_ACTIVE_PATH}keep/"
 UNET_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline.ckpt"
 UNET_ACTIVE_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline_active.ckpt"
 
-SKY_COVER_WIDTH = 640
-SKY_COVER_HEIGHT = 360
 SKY_COVER_MAX_GROUND_TRUTH_VALUE = 224
+
+# Classification
+SKY_FINDER_DESCRIPTORS_PATH = f"{GENERATED_PATH}sky_finder_descriptors.json"
+ALL_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/all_baseline.ckpt"
+CONTRASTIVE_ONLY_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/contrastive_only_baseline.ckpt"
+COVER_ONLY_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/cover_only_baseline.ckpt"

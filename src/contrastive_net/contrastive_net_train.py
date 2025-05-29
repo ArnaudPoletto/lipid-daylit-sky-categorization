@@ -34,7 +34,11 @@ def main() -> None:
     torch.set_float32_matmul_precision("high")
 
     # Get model
-    model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
+    model = ContrastiveNet(
+        projection_dim=PROJECTION_DIM, 
+        pretrained=True,
+        normalize_embeddings=True,
+    )
     lightning_model = ContrastiveLightningModel(
         model=model,
         learning_rate=LEARNING_RATE,

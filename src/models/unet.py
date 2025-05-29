@@ -26,7 +26,7 @@ class UNet(nn.Module):
             bottleneck_dropout_rate (float): Dropout rate for the bottleneck layer.
             decoder_dropout_rate (float): Dropout rate for the decoder layers.
         """
-        super().__init__()
+        super(UNet, self).__init__()
 
         self.bottleneck_dropout_rate = bottleneck_dropout_rate
         self.decoder_dropout_rate = decoder_dropout_rate

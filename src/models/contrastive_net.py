@@ -16,6 +16,7 @@ class ContrastiveNet(nn.Module):
         self,
         projection_dim: int,
         pretrained: bool,
+        normalize_embeddings: bool,
     ) -> None:
         """
         Initialize the ContrastiveNet module.
@@ -23,8 +24,9 @@ class ContrastiveNet(nn.Module):
         Args:
             projection_dim (int): Dimension of the projection head.
             pretrained (bool): Whether to use pretrained weights for the ResNet50 backbone.
+            normalize_embeddings (bool): Whether to normalize the output embeddings.
         """
-        super().__init__()
+        super(ContrastiveNet, self).__init__()
 
         # Use ResNet50 as backbone encoder
         if pretrained:
@@ -32,6 +34,8 @@ class ContrastiveNet(nn.Module):
             self.backbone = resnet50(weights=weights)
         else:
             self.backbone = resnet50(weights=None)
+        
+        self.normalize_embeddings = normalize_embeddings
 
             # Change classification head by a new projection head
         hidden_dim = self.backbone.fc.in_features
@@ -54,6 +58,7 @@ class ContrastiveNet(nn.Module):
         """
         features = self.backbone(x)
         projection = self.projector(features)
-        normalized_projection = F.normalize(projection, p=2, dim=1)
-
-        return normalized_projection
+        if self.normalize_embeddings:
+            return F.normalize(projection, p=2, dim=1)
+        else:
+            return projection

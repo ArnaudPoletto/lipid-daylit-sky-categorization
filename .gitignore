@@ -1,10 +1,12 @@
 src/contrastive_net/wandb/
 src/unet/wandb/
+src/sky_class_net/wandb/
 generated/tsne_interactive_plot.html
 
 data/TODO
 data/models/contrastive_net
 data/models/unet
+data/models/sky_class_net
 data/sky_finder/train/
 data/sky_finder/test/
 data/sky_finder/val/
@@ -13,7 +15,11 @@ data/sky_finder/extracted/
 data/sky_finder/images/
 data/sky_finder_cover/
 data/sky_finder_active
+data/videos
+
+src/gsam2/
 
 generated/embeddings.json
+generated/sky_finder_descriptors.json
 
 *.pyc

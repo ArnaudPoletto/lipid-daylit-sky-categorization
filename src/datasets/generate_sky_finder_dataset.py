@@ -377,11 +377,10 @@ def remove_data() -> None:
     print("✅ All unused data removed.")
 
 
-def parse_args() -> None:
+def parse_args() -> argparse.Namespace:
     """
     Parse command line arguments.
     """
-
     parser = argparse.ArgumentParser(description="Download sky finder archives.")
 
     parser.add_argument(

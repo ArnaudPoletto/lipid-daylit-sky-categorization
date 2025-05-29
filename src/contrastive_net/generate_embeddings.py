@@ -38,7 +38,11 @@ def get_model(checkpoint_path: str) -> ContrastiveNet:
     Returns:
         ContrastiveNet: ContrastiveNet model.
     """
-    model = ContrastiveNet(projection_dim=PROJECTION_DIM, pretrained=True)
+    model = ContrastiveNet(
+        projection_dim=PROJECTION_DIM, 
+        pretrained=True,
+        normalize_embeddings=True,
+    )
     lightning_model = ContrastiveLightningModel.load_from_checkpoint(
         checkpoint_path,
         model=model,
@@ -126,7 +130,7 @@ def get_embedding(
     return embedding
 
 
-def parse_args() -> None:
+def parse_args() -> argparse.Namespace:
     """
     Parse command line arguments.
     """
