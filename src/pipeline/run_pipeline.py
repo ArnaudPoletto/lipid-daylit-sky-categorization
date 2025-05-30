@@ -2,22 +2,16 @@ import os
 import sys
 import cv2
 import argparse
-import matplotlib
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from typing import Optional, Tuple, Dict, Any
 
-matplotlib.use("TkAgg")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.pipeline.sky_segmentation import get_sky_mask
 from src.pipeline.texture_descriptor import get_texture_descriptor
 from src.pipeline.texture_descriptor import get_model as get_texture_model
 from src.pipeline.sky_segmentation import get_models as get_sky_segmentation_models
-
-DEFAULT_FRAME_RATE = 1 / 3
-
 
 def get_video(video_path: str) -> cv2.VideoCapture:
     """
@@ -51,6 +45,8 @@ def process_frame(
     image_predictor: Optional[object],
     grounding_processor: Optional[object],
     grounding_model: Optional[object],
+    box_threshold: float,
+    text_threshold: float,
     texture_model: object,
 ) -> Dict[str, Any]:
     """
@@ -65,6 +61,8 @@ def process_frame(
         sky_bounding_box (Optional[Tuple[int, int, int, int]]): Bounding box for the sky mask.
         image_predictor (Optional[object]): SAM2 image predictor model.
         grounding_processor (Optional[object]): Grounding DINO processor.
+        box_threshold (float): Threshold for sky box detection.
+        text_threshold (float): Threshold for sky text detection.
         grounding_model (object): Grounding DINO model.
 
     Returns:
@@ -89,6 +87,8 @@ def process_frame(
             image_predictor=image_predictor,
             grounding_processor=grounding_processor,
             grounding_model=grounding_model,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
         )
 
     # Apply the sky mask
@@ -108,7 +108,6 @@ def process_frame(
         frame=frame,
         model=texture_model,
     )
-    print("texture_descriptor", texture_descriptor)
 
     return {
         "sky_mask": sky_mask, 
@@ -145,6 +144,8 @@ def process_video(
     image_predictor: object,
     grounding_processor: object,
     grounding_model: object,
+    box_threshold: float,
+    text_threshold: float,
     texture_model: object,
 ) -> None:
     """
@@ -158,6 +159,8 @@ def process_video(
         image_predictor (Optional[object]): SAM2 image predictor model.
         grounding_processor (Optional[object]): Grounding DINO processor.
         grounding_model (Optional[object]): Grounding DINO model.
+        box_threshold (float): Threshold for sky box detection.
+        text_threshold (float): Threshold for sky text detection.
         texture_model (object): Texture descriptor model.
 
     Raises:
@@ -194,6 +197,8 @@ def process_video(
                 image_predictor=image_predictor if sky_mask is None else None,
                 grounding_processor=grounding_processor if sky_mask is None else None,
                 grounding_model=grounding_model if sky_mask is None else None,
+                box_threshold=box_threshold,
+                text_threshold=text_threshold,
                 texture_model=texture_model,
             )
 
@@ -232,9 +237,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--frame-rate",
         "-fr",
-        type=int,
-        default=DEFAULT_FRAME_RATE,
-        help=f"Frame rate for processing the video (default: {DEFAULT_FRAME_RATE}).",
+        type=float,
+        default=1/3,
+        help=f"Frame rate for processing the video (default: 1/3).",
     )
     parser.add_argument(
         "--sam2-type",
@@ -252,6 +257,20 @@ def parse_args() -> argparse.Namespace:
         choices=["tiny", "base"],
         help="Type of Grounding DINO model to use (default: tiny).",
     )
+    parser.add_argument(
+        "--box-threshold",
+        "-bt",
+        type=float,
+        default=0.35,
+        help="Threshold for sky box detection (default: 0.35).",
+    )
+    parser.add_argument(
+        "--text-threshold",
+        "-tt",
+        type=float,
+        default=0.35,
+        help="Threshold for sky text detection (default: 0.35).",
+    )
 
     return parser.parse_args()
 
@@ -264,9 +283,21 @@ def main() -> None:
     frame_rate = args.frame_rate
     sam2_type = args.sam2_type
     gdino_type = args.gdino_type
+    box_threshold = args.box_threshold
+    text_threshold = args.text_threshold
 
     if frame_rate <= 0:
         raise ValueError("❌ Frame rate must be a positive number greater than zero.")
+    if box_threshold < 0 or box_threshold > 1:
+        raise ValueError("❌ Box threshold must be between 0 and 1.")
+    if text_threshold < 0 or text_threshold > 1:
+        raise ValueError("❌ Text threshold must be between 0 and 1.")
+    
+    ### TODO
+    from src.pipeline.texture_descriptor import get_sky_finder_texture_descriptors, plot_sky_finder_texture_descriptors
+    sky_finder_texture_descriptors = get_sky_finder_texture_descriptors()
+    plot_sky_finder_texture_descriptors(sky_finder_texture_descriptors)
+    ### TODO
 
     print(f"▶️  Running pipeline with video path {os.path.abspath(video_path)}.")
     if mask_path:
@@ -319,6 +350,8 @@ def main() -> None:
         image_predictor=image_predictor,
         grounding_processor=grounding_processor,
         grounding_model=grounding_model,
+        box_threshold=box_threshold,
+        text_threshold=text_threshold,
         texture_model=texture_model,
     )
 
