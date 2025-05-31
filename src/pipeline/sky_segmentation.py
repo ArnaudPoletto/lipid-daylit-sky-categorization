@@ -96,11 +96,6 @@ def get_sky_mask(
         np.ndarray: The sky mask as a NumPy array.
         Tuple[int, int, int, int]: The bounding box of the sky region in the format (x_min, y_min, x_max, y_max).
     """
-    torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
-    if torch.cuda.get_device_properties(0).major >= 8:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
-
     text = "sky."
     image = Image.fromarray(frame)
 

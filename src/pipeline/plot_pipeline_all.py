@@ -71,9 +71,9 @@ def load_video_data(json_file_path: str) -> Dict[str, Any]:
         raise IOError(f"❌ Could not read {json_file_path}: {e}")
 
 
-def collect_all_texture_descriptors(json_files: List[str]) -> tuple:
+def collect_data(json_files: List[str]) -> tuple:
     """
-    Collect mean texture descriptors from all processed video files.
+    Collect data from all processed video JSON files.
 
     Args:
         json_files (List[str]): List of JSON file paths.
@@ -82,6 +82,7 @@ def collect_all_texture_descriptors(json_files: List[str]) -> tuple:
         tuple: (texture_descriptors_array, video_names_list)
     """
     all_texture_descriptors = []
+    sky_classes = []
     video_names = []
 
     print(f"📖 Loading texture descriptors from {len(json_files)} video(s)...")
@@ -90,7 +91,9 @@ def collect_all_texture_descriptors(json_files: List[str]) -> tuple:
         try:
             video_data = load_video_data(json_file)
             mean_texture_descriptor = np.array(video_data["mean_texture_descriptor"])
+            sky_class = video_data.get("sky_class")
             all_texture_descriptors.append(mean_texture_descriptor)
+            sky_classes.append(sky_class)
 
             # Extract video name from filename (remove _processed.json)
             video_name = (
@@ -104,14 +107,12 @@ def collect_all_texture_descriptors(json_files: List[str]) -> tuple:
             print(f"⚠️  Skipping {os.path.basename(json_file)}: {e}")
             continue
 
-    if not all_texture_descriptors:
-        raise ValueError("❌ No valid texture descriptors found in any JSON files")
-
-    return np.array(all_texture_descriptors), video_names
+    return np.array(all_texture_descriptors), np.array(sky_classes), video_names
 
 
 def plot_all_videos(
     all_texture_descriptors: np.ndarray,
+    all_sky_classes: np.ndarray,
     video_names: List[str],
 ) -> None:
     """
@@ -119,6 +120,7 @@ def plot_all_videos(
 
     Args:
         all_texture_descriptors (np.ndarray): Array of all texture descriptors.
+        all_sky_classes (np.ndarray): Array of sky classes corresponding to descriptors.
         video_names (List[str]): List of video names corresponding to descriptors.
     """
     print("➡️  Generating UMAP visualization...")
@@ -134,6 +136,7 @@ def plot_all_videos(
         sky_finder_texture_descriptors=sky_finder_texture_descriptors
     )
 
+    # Get Out-of-Sample labels
     oos_labels = []
     for video_name in video_names:
         # Remove file extensions
@@ -154,16 +157,22 @@ def plot_all_videos(
             oos_label = f"{match.group(1)}o|{match.group(2)}"
         else:
             oos_label = video_name
-        
         oos_labels.append(oos_label)
+
+    # Get Out-of-Sample colors
+    oos_colors = []
+    for sky_class in all_sky_classes:
+        oos_color = ["blue", "orange", "red"][sky_class]
+        oos_colors.append(oos_color)
 
     # Plot all videos in the UMAP space
     plot_sky_finder_texture_descriptors(
         fitted_umap=fitted_umap_reducer,
         sky_finder_texture_descriptors=sky_finder_texture_descriptors,
         colors=colors,
-        #oos_texture_descriptors=all_texture_descriptors,
-        #oos_labels=oos_labels,
+        oos_texture_descriptors=all_texture_descriptors,
+        oos_colors=oos_colors,
+        oos_labels=oos_labels,
     )
 
 
@@ -208,11 +217,12 @@ def main() -> None:
         return
 
     # Collect all texture descriptors
-    all_texture_descriptors, video_names = collect_all_texture_descriptors(json_files)
+    all_texture_descriptors, all_sky_classes, video_names = collect_data(json_files)
 
     # Plot all videos
     plot_all_videos(
         all_texture_descriptors=all_texture_descriptors,
+        all_sky_classes=all_sky_classes,
         video_names=video_names,
     )
 

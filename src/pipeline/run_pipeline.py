@@ -16,10 +16,15 @@ from src.pipeline.texture_descriptor import (
     get_fitted_umap_reducer,
     plot_sky_finder_texture_descriptors,
 )
+from src.pipeline.sky_classification import get_sky_class
+from src.models.sky_class_net import SkyClassNet
+from src.models.contrastive_net import ContrastiveNet
 from src.pipeline.texture_descriptor import get_model as get_texture_model
+from src.pipeline.sky_classification import get_model as get_sky_class_model
 from src.pipeline.sky_segmentation import get_models as get_sky_segmentation_models
 from src.config import (
     GENERATED_PIPELINE_PATH,
+    DEVICE,
 )
 
 
@@ -84,7 +89,8 @@ def process_frame(
     grounding_model: Optional[object],
     box_threshold: float,
     text_threshold: float,
-    texture_model: object,
+    texture_model: ContrastiveNet,
+    sky_class_model: SkyClassNet,
 ) -> Dict[str, Any]:
     """
     Process a single video frame, applying a mask if provided and displaying it.
@@ -98,9 +104,11 @@ def process_frame(
         sky_bounding_box (Optional[Tuple[int, int, int, int]]): Bounding box for the sky mask.
         image_predictor (Optional[object]): SAM2 image predictor model.
         grounding_processor (Optional[object]): Grounding DINO processor.
+        grounding_model (Optional[object]): Grounding DINO model.
         box_threshold (float): Threshold for sky box detection.
         text_threshold (float): Threshold for sky text detection.
-        grounding_model (object): Grounding DINO model.
+        texture_model (ContrastiveNet): Texture descriptor model.
+        sky_class_model (SkyClassNet): Sky classification model.
 
     Returns:
         Dict[str, Any]: A dictionary containing the sky mask, bounding box, and descriptors.
@@ -145,11 +153,19 @@ def process_frame(
         frame=frame,
         model=texture_model,
     )
+    normalized_texture_descriptor = texture_descriptor / np.linalg.norm(texture_descriptor)
+
+    # Get sky class prediction
+    sky_class = get_sky_class(
+        texture_descriptor=texture_descriptor,
+        model=sky_class_model,
+    )
 
     return {
         "sky_mask": sky_mask,
         "sky_bounding_box": sky_bounding_box,
-        "texture_descriptor": texture_descriptor.tolist(),
+        "texture_descriptor": normalized_texture_descriptor.tolist(),
+        "sky_class": int(sky_class),
     }
 
 
@@ -183,7 +199,8 @@ def process_video(
     grounding_model: object,
     box_threshold: float,
     text_threshold: float,
-    texture_model: object,
+    texture_model: ContrastiveNet,
+    sky_class_model: SkyClassNet,
 ) -> Dict[str, Any]:
     """
     Process the video frames with a specified frame step.
@@ -198,7 +215,8 @@ def process_video(
         grounding_model (Optional[object]): Grounding DINO model.
         box_threshold (float): Threshold for sky box detection.
         text_threshold (float): Threshold for sky text detection.
-        texture_model (object): Texture descriptor model.
+        texture_model (ContrastiveNet): Texture descriptor model.
+        sky_class_model (SkyClassNet): Sky classification model.
 
     Raises:
         ValueError: If frame_step is not a positive integer.
@@ -242,6 +260,7 @@ def process_video(
                 box_threshold=box_threshold,
                 text_threshold=text_threshold,
                 texture_model=texture_model,
+                sky_class_model=sky_class_model,
             )
 
             if sky_mask is None:
@@ -250,8 +269,10 @@ def process_video(
                 sky_bounding_box = frame_dict.get("sky_bounding_box")
 
             texture_descriptor = frame_dict.get("texture_descriptor")
+            sky_class = frame_dict.get("sky_class")
             video_dict[frame_count] = {
                 "texture_descriptor": texture_descriptor,
+                "sky_class": sky_class,
             }
 
             bar.update(1)
@@ -265,7 +286,12 @@ def process_video(
         np.array([video_dict[frame]["texture_descriptor"] for frame in video_dict]),
         axis=0,
     )
+
+    majority_sky_class = np.bincount(
+        [video_dict[frame]["sky_class"] for frame in video_dict]
+    ).argmax()
     video_dict["mean_texture_descriptor"] = mean_texture_descriptor.tolist()
+    video_dict["sky_class"] = int(majority_sky_class)
 
     return video_dict
 
@@ -375,12 +401,13 @@ def main() -> None:
             f"➡️  Processing video at {frame_rate:.1f} FPS (original: {video_frame_rate:.1f} FPS)."
         )
 
-    # Get sky segmentation and texture models
+    # Get models
     image_predictor, grounding_processor, grounding_model = get_sky_segmentation_models(
         sam2_type=sam2_type,
         gdino_type=gdino_type,
     )
     texture_model = get_texture_model()
+    sky_class_model = get_sky_class_model()
 
     # Process video frames if not already generated
     video_dict_path = (
@@ -403,6 +430,7 @@ def main() -> None:
             box_threshold=box_threshold,
             text_threshold=text_threshold,
             texture_model=texture_model,
+            sky_class_model=sky_class_model,
         )
 
         # Save processed video results

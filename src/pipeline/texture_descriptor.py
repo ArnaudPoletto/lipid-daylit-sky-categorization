@@ -46,7 +46,7 @@ def get_model() -> ContrastiveNet:
     model = ContrastiveNet(
         projection_dim=PROJECTION_DIM,
         pretrained=True,
-        normalize_embeddings=True,
+        normalize_embeddings=False,
     )
     lightning_model = ContrastiveLightningModel.load_from_checkpoint(
         CONTRASTIVE_CHECKPOINT_PATH,
@@ -76,6 +76,7 @@ def get_texture_descriptor(
     Returns:
         np.ndarray: The texture descriptor for the input frame.
     """
+    # Preprocess the frame
     transform = A.Compose(
         [
             A.Resize(height=SKY_FINDER_HEIGHT, width=SKY_FINDER_WIDTH, p=1.0),
@@ -93,6 +94,8 @@ def get_texture_descriptor(
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = transform(image=frame)["image"]
     frame = frame.unsqueeze(0).to(DEVICE)
+
+    # Get the texture descriptor
     with torch.no_grad():
         features = model(frame)
     features = features.cpu().numpy()
@@ -156,6 +159,7 @@ def plot_sky_finder_texture_descriptors(
     sky_finder_texture_descriptors: np.ndarray,
     colors: Optional[List[str]] = None,
     oos_texture_descriptors: Optional[np.ndarray] = None,
+    oos_colors: Optional[List[str]] = None,
     oos_labels: Optional[List[str]] = None,
 ) -> None:
     if oos_texture_descriptors is not None and oos_labels is not None and len(oos_texture_descriptors) != len(oos_labels):
@@ -187,7 +191,7 @@ def plot_sky_finder_texture_descriptors(
             projected_oos_descriptors[:, 1],
             s=50,
             alpha=1.0,
-            color="green",
+            color=oos_colors if oos_colors is not None else "green",
             marker="X",
         )
 
