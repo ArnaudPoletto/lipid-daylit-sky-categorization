@@ -1,6 +1,7 @@
 import os
 import sys
 import cv2
+import json
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -9,9 +10,18 @@ from typing import Optional, Tuple, Dict, Any
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.pipeline.sky_segmentation import get_sky_mask
-from src.pipeline.texture_descriptor import get_texture_descriptor
+from src.pipeline.texture_descriptor import (
+    get_texture_descriptor,
+    get_sky_finder_texture_descriptors,
+    get_fitted_umap_reducer,
+    plot_sky_finder_texture_descriptors,
+)
 from src.pipeline.texture_descriptor import get_model as get_texture_model
 from src.pipeline.sky_segmentation import get_models as get_sky_segmentation_models
+from src.config import (
+    GENERATED_PIPELINE_PATH,
+)
+
 
 def get_video(video_path: str) -> cv2.VideoCapture:
     """
@@ -34,6 +44,33 @@ def get_video(video_path: str) -> cv2.VideoCapture:
     video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     return video, video_frame_rate, video_frame_count
+
+
+def get_mask(mask_path: Optional[str]) -> Optional[np.ndarray]:
+    """
+    Get a binary mask from the specified mask file path.
+
+    Args:
+        mask_path (Optional[str]): Path to the mask file. If None, no mask is applied.
+
+    Returns:
+        Optional[np.ndarray]: Binary mask as a numpy array, or None if no mask is provided.
+    """
+    if mask_path is None:
+        return None
+
+    if not os.path.exists(mask_path):
+        raise FileNotFoundError(
+            f"❌ Mask file not found at {os.path.abspath(mask_path)}."
+        )
+
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise ValueError(
+            f"❌ Could not read mask file at {os.path.abspath(mask_path)}. Ensure it is a valid image file."
+        )
+
+    return mask > (255 / 2)
 
 
 def process_frame(
@@ -110,9 +147,9 @@ def process_frame(
     )
 
     return {
-        "sky_mask": sky_mask, 
+        "sky_mask": sky_mask,
         "sky_bounding_box": sky_bounding_box,
-        "texture_descriptor": texture_descriptor,
+        "texture_descriptor": texture_descriptor.tolist(),
     }
 
 
@@ -147,7 +184,7 @@ def process_video(
     box_threshold: float,
     text_threshold: float,
     texture_model: object,
-) -> None:
+) -> Dict[str, Any]:
     """
     Process the video frames with a specified frame step.
 
@@ -166,6 +203,9 @@ def process_video(
     Raises:
         ValueError: If frame_step is not a positive integer.
         ValueError: If video_frame_count is not a positive integer.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the processed results.
     """
     if frame_step <= 0:
         raise ValueError("❌ Frame step must be a positive integer.")
@@ -175,6 +215,7 @@ def process_video(
     # Get mask bounds to crop the area of interest
     bounds = get_mask_bounds(mask) if mask is not None else None
 
+    # Process video frames sequentially
     n_frames_to_process = video_frame_count // frame_step
     bar = tqdm(
         total=n_frames_to_process, desc="⌛ Processing video frames...", unit="frame"
@@ -182,6 +223,7 @@ def process_video(
     frame_count = 0
     sky_mask = None
     sky_bounding_box = None
+    video_dict = {}
     while True:
         ret, frame = video.read()
         if not ret:
@@ -206,12 +248,26 @@ def process_video(
                 sky_mask = frame_dict.get("sky_mask")
             if sky_bounding_box is None:
                 sky_bounding_box = frame_dict.get("sky_bounding_box")
-                
+
             texture_descriptor = frame_dict.get("texture_descriptor")
-            
+            video_dict[frame_count] = {
+                "texture_descriptor": texture_descriptor,
+            }
+
             bar.update(1)
 
         frame_count += 1
+    video.release()
+    bar.close()
+
+    # Get global video results
+    mean_texture_descriptor = np.mean(
+        np.array([video_dict[frame]["texture_descriptor"] for frame in video_dict]),
+        axis=0,
+    )
+    video_dict["mean_texture_descriptor"] = mean_texture_descriptor.tolist()
+
+    return video_dict
 
 
 def parse_args() -> argparse.Namespace:
@@ -238,7 +294,7 @@ def parse_args() -> argparse.Namespace:
         "--frame-rate",
         "-fr",
         type=float,
-        default=1/3,
+        default=1 / 3,
         help=f"Frame rate for processing the video (default: 1/3).",
     )
     parser.add_argument(
@@ -271,6 +327,12 @@ def parse_args() -> argparse.Namespace:
         default=0.35,
         help="Threshold for sky text detection (default: 0.35).",
     )
+    parser.add_argument(
+        "--show-plots",
+        "-sp",
+        action="store_true",
+        help="Show plots of the processed video results.",
+    )
 
     return parser.parse_args()
 
@@ -285,6 +347,7 @@ def main() -> None:
     gdino_type = args.gdino_type
     box_threshold = args.box_threshold
     text_threshold = args.text_threshold
+    show_plots = args.show_plots
 
     if frame_rate <= 0:
         raise ValueError("❌ Frame rate must be a positive number greater than zero.")
@@ -292,12 +355,6 @@ def main() -> None:
         raise ValueError("❌ Box threshold must be between 0 and 1.")
     if text_threshold < 0 or text_threshold > 1:
         raise ValueError("❌ Text threshold must be between 0 and 1.")
-    
-    ### TODO
-    from src.pipeline.texture_descriptor import get_sky_finder_texture_descriptors, plot_sky_finder_texture_descriptors
-    sky_finder_texture_descriptors = get_sky_finder_texture_descriptors()
-    plot_sky_finder_texture_descriptors(sky_finder_texture_descriptors)
-    ### TODO
 
     print(f"▶️  Running pipeline with video path {os.path.abspath(video_path)}.")
     if mask_path:
@@ -305,7 +362,8 @@ def main() -> None:
             f"➡️  Using mask at {os.path.abspath(mask_path)} to crop the area of interest."
         )
 
-    # Get video
+    # Get mask and video
+    mask = get_mask(mask_path)
     video, video_frame_rate, video_frame_count = get_video(video_path)
     if frame_rate < 1:
         frame_period = 1 / frame_rate
@@ -317,43 +375,61 @@ def main() -> None:
             f"➡️  Processing video at {frame_rate:.1f} FPS (original: {video_frame_rate:.1f} FPS)."
         )
 
-    # Get mask if provided
-    mask = None
-    if mask_path:
-        if not os.path.exists(mask_path):
-            raise FileNotFoundError(
-                f"❌ Mask file not found at {os.path.abspath(mask_path)}."
-            )
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        if mask is None:
-            raise ValueError(
-                f"❌ Could not read mask file at {os.path.abspath(mask_path)}. Ensure it is a valid image file."
-            )
-        mask = mask > (255 / 2)
-
-    # Get sky segmentation models
+    # Get sky segmentation and texture models
     image_predictor, grounding_processor, grounding_model = get_sky_segmentation_models(
         sam2_type=sam2_type,
         gdino_type=gdino_type,
     )
-
-    # Get texture model
     texture_model = get_texture_model()
 
-    # Process video frames
-    frame_step = int(video_frame_rate / frame_rate)
-    process_video(
-        video=video,
-        mask=mask,
-        frame_step=frame_step,
-        video_frame_count=video_frame_count,
-        image_predictor=image_predictor,
-        grounding_processor=grounding_processor,
-        grounding_model=grounding_model,
-        box_threshold=box_threshold,
-        text_threshold=text_threshold,
-        texture_model=texture_model,
+    # Process video frames if not already generated
+    video_dict_path = (
+        f"{GENERATED_PIPELINE_PATH}/{os.path.basename(video_path).replace('.', '_')}_processed.json"
     )
+    if os.path.exists(video_dict_path):
+        with open(video_dict_path, "r") as f:
+            video_dict = json.load(f)
+            print(f"✅ Processed video results already exist at {os.path.abspath(video_dict_path)}. Skipping processing.")
+    else:
+        frame_step = int(video_frame_rate / frame_rate)
+        video_dict = process_video(
+            video=video,
+            mask=mask,
+            frame_step=frame_step,
+            video_frame_count=video_frame_count,
+            image_predictor=image_predictor,
+            grounding_processor=grounding_processor,
+            grounding_model=grounding_model,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
+            texture_model=texture_model,
+        )
+
+        # Save processed video results
+        os.makedirs(GENERATED_PIPELINE_PATH, exist_ok=True)
+        with open(video_dict_path, "w") as f:
+            json.dump(video_dict, f, indent=4)
+            print(f"✅ Processed video results saved to {os.path.abspath(video_dict_path)}.")
+
+    # Get processed video results
+    mean_texture_descriptor = video_dict.get("mean_texture_descriptor")
+    if mean_texture_descriptor is None:
+        raise ValueError("❌ Mean texture descriptor not found in processed video results.")
+    mean_texture_descriptor = np.array(mean_texture_descriptor)
+
+    if show_plots:
+        print("➡️  Showing plots of the processed video results...")
+        # Plot mean texture descriptor in the fitted UMAP space
+        sky_finder_texture_descriptors = get_sky_finder_texture_descriptors()
+        fitted_umap_reducer = get_fitted_umap_reducer(
+            sky_finder_texture_descriptors=sky_finder_texture_descriptors
+        )
+        oos_texture_descriptors = np.array([mean_texture_descriptor])
+        plot_sky_finder_texture_descriptors(
+            fitted_umap=fitted_umap_reducer,
+            sky_finder_texture_descriptors=sky_finder_texture_descriptors,
+            oos_texture_descriptors=oos_texture_descriptors,
+        )
 
 
 if __name__ == "__main__":

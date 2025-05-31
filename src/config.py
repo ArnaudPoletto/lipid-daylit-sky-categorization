@@ -51,3 +51,7 @@ SKY_FINDER_DESCRIPTORS_PATH = f"{GENERATED_PATH}sky_finder_descriptors.json"
 ALL_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/all_baseline.ckpt"
 CONTRASTIVE_ONLY_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/contrastive_only_baseline.ckpt"
 COVER_ONLY_SKY_CLASS_NET_CHECKPOINT_PATH = f"{MODELS_PATH}sky_class_net/cover_only_baseline.ckpt"
+
+# Pipeline
+PROCESSED_VIDEOS_PATH = f"{DATA_PATH}videos/processed/"
+GENERATED_PIPELINE_PATH = f"{GENERATED_PATH}pipeline/"
