@@ -12,7 +12,10 @@ from src.config import (
     DEVICE,
 )
 
-def get_model():
+def get_model() -> SkyClassNet:
+    """
+    Load the pretrained sky class model for sky classification.
+    """
     model = SkyClassNet(
         input_dim=16,
         output_dim=3,

@@ -17,20 +17,20 @@ from src.utils.random import set_seed
 from src.lightning_models.unet_lightning_model import UNetLightningModel
 from src.datasets.sky_finder_cover_dataset import SkyFinderCoverModule
 from src.config import (
-    UNET_CHECKPOINT_PATH,
+    UNET_MANUAL_CHECKPOINT_PATH,
     MODELS_PATH,
     SEED,
     DEVICE,
 )
 
-N_EPOCHS = 40
+N_EPOCHS = 100
 BATCH_SIZE = 2
 N_WORKERS = 8
 EVALUATION_STEPS = 40
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
-BOTTLENECK_DROPOUT_RATE = 0.1
-DECODER_DROPOUT_RATE = 0.25
+BOTTLENECK_DROPOUT_RATE = 0.0
+DECODER_DROPOUT_RATE = 0.0
 
 
 def parse_args() -> None:
@@ -64,14 +64,14 @@ def main() -> None:
     ).to(DEVICE)
     if active:
         lightning_model = UNetLightningModel.load_from_checkpoint(
-            UNET_CHECKPOINT_PATH,
+            UNET_MANUAL_CHECKPOINT_PATH,
             model=model,
             learning_rate=LEARNING_RATE * 0.1,
             weight_decay=WEIGHT_DECAY,
             name="unet",
             dataset="sky_finder_cover",
         )
-        print(f"✅ Loaded model from {os.path.abspath(UNET_CHECKPOINT_PATH)}.")
+        print(f"✅ Loaded model from {os.path.abspath(UNET_MANUAL_CHECKPOINT_PATH)}.")
     else:
         lightning_model = UNetLightningModel(
             model=model,

@@ -9,6 +9,7 @@ import numpy as np
 import albumentations as A
 import matplotlib.pyplot as plt
 from adjustText import adjust_text
+from scipy.spatial import ConvexHull
 from typing import Optional, List, Tuple
 from albumentations.pytorch.transforms import ToTensorV2
 
@@ -71,7 +72,7 @@ def get_texture_descriptor(
 
     Args:
         frame (np.ndarray): The input image frame in BGR format.
-        model (ContrastiveNet): The pre-trained ContrastiveNet model.
+        model (ContrastiveNet): The pretrained ContrastiveNet model.
 
     Returns:
         np.ndarray: The texture descriptor for the input frame.
@@ -161,14 +162,19 @@ def plot_sky_finder_texture_descriptors(
     oos_texture_descriptors: Optional[np.ndarray] = None,
     oos_colors: Optional[List[str]] = None,
     oos_labels: Optional[List[str]] = None,
+    oos_as_convex_hull: bool = False,
 ) -> None:
-    if oos_texture_descriptors is not None and oos_labels is not None and len(oos_texture_descriptors) != len(oos_labels):
+    if not oos_as_convex_hull and oos_texture_descriptors is not None and oos_labels is not None and len(oos_texture_descriptors) != len(oos_labels):
         raise ValueError(
             "❌ The number of out-of-sample texture descriptors must match the number of labels."
         )
     if colors is not None and len(colors) != len(sky_finder_texture_descriptors):
         raise ValueError(
             "❌ The number of colors must match the number of Sky Finder texture descriptors."
+        )
+    if oos_as_convex_hull and len(oos_labels) != 1:
+        raise ValueError(
+            "❌ If out-of-sample descriptors are plotted as a convex hull, there must be exactly one label."
         )
     
     projected_descriptors = fitted_umap.transform(sky_finder_texture_descriptors)
@@ -186,46 +192,88 @@ def plot_sky_finder_texture_descriptors(
         color=colors if colors is not None else "blue",
     )
     if projected_oos_descriptors is not None:
-        scatter_points = plt.scatter(
-            projected_oos_descriptors[:, 0],
-            projected_oos_descriptors[:, 1],
-            s=50,
-            alpha=1.0,
-            color=oos_colors if oos_colors is not None else "green",
-            marker="X",
-        )
+        if oos_as_convex_hull and len(projected_oos_descriptors) >= 3:
+            hull = ConvexHull(projected_oos_descriptors)
 
-        # Add labels for out-of-sample descriptors
-        if oos_labels is not None:
-            texts = []
-            for i, label in enumerate(oos_labels):
-                text = plt.text(
-                    projected_oos_descriptors[i, 0],
-                    projected_oos_descriptors[i, 1],
-                    label,
-                    fontsize=9,
-                    ha='center',
-                    va='center',
-                    bbox=dict(boxstyle='round,pad=0.1', facecolor='white', alpha=0.8, edgecolor='gray')
+            # Plot the convex hull area
+            for simplex in hull.simplices:
+                plt.plot(
+                    projected_oos_descriptors[simplex, 0], 
+                    projected_oos_descriptors[simplex, 1], 
+                    color="gray", 
+                    alpha=0.8,
+                    linewidth=1
                 )
-                texts.append(text)
-
-            adjust_text(
-                texts,
-                x=projected_oos_descriptors[:, 0],
-                y=projected_oos_descriptors[:, 1],
-                arrowprops=dict(arrowstyle='->', color='gray', alpha=0.6, lw=0.5),
-                expand_points=(2.5, 2.5),
-                expand_text=(1.5, 1.5),
-                expand_objects=(0.5, 0.5),
-                force_points=(0.1, 0.1),
-                force_text=(0.8, 0.9),
-                force_objects=(0.8, 0.8),
-                objects=scatter_points,
+            
+            # Fill the convex hull area
+            hull_points = projected_oos_descriptors[hull.vertices]
+            plt.fill(
+                hull_points[:, 0], 
+                hull_points[:, 1], 
+                color="gray", 
+                alpha=0.2,
             )
+            
+            # Plot individual points within the hull
+            plt.scatter(
+                projected_oos_descriptors[:, 0],
+                projected_oos_descriptors[:, 1],
+                s=50,
+                alpha=1.0,
+                color=oos_colors if oos_colors is not None else "green",
+                marker="x",
+            )
+        else:
+            scatter_points = plt.scatter(
+                projected_oos_descriptors[:, 0],
+                projected_oos_descriptors[:, 1],
+                s=50,
+                alpha=1.0,
+                color=oos_colors if oos_colors is not None else "green",
+                marker="X",
+            )
+
+            # Add labels for out-of-sample descriptors
+            if oos_labels is not None:
+                texts = []
+                for i, label in enumerate(oos_labels):
+                    text = plt.text(
+                        projected_oos_descriptors[i, 0],
+                        projected_oos_descriptors[i, 1],
+                        label,
+                        fontsize=9,
+                        ha='center',
+                        va='center',
+                        bbox=dict(boxstyle='round,pad=0.1', facecolor='white', alpha=0.8, edgecolor='gray')
+                    )
+                    texts.append(text)
+
+                adjust_text(
+                    texts,
+                    x=projected_oos_descriptors[:, 0],
+                    y=projected_oos_descriptors[:, 1],
+                    arrowprops=dict(arrowstyle='->', color='gray', alpha=0.6, lw=0.5),
+                    expand_points=(2.5, 2.5),
+                    expand_text=(1.5, 1.5),
+                    expand_objects=(0.5, 0.5),
+                    force_points=(0.1, 0.1),
+                    force_text=(0.8, 0.9),
+                    force_objects=(0.8, 0.8),
+                    objects=scatter_points,
+                )
 
     plt.title("UMAP Visualization of Sky Finder Test Set Texture Descriptors")
     plt.xlabel("UMAP Dimension 1")
     plt.ylabel("UMAP Dimension 2")
     plt.grid(True, alpha=0.3)
+    if colors is not None:
+        unique_colors = set(colors)
+        color_labels = {
+            "blue": "clear",
+            "orange": "partial",
+            "red": "overcast"
+        }
+        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10) for color in unique_colors]
+        labels = [color_labels[color] for color in unique_colors]
+        plt.legend(handles, labels, title="Sky Class", loc="upper right")
     plt.show()

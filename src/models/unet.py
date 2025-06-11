@@ -58,7 +58,18 @@ class UNet(nn.Module):
         self.decoder1 = self._make_decoder_block(64 + 64, 32)
 
         # Final output layer
-        self.final_conv = nn.Conv2d(32, 2, kernel_size=1)
+        self.final_conv = nn.Conv2d(32, 1, kernel_size=1)
+
+        # Final sky class layer that maps everything into 1 single number
+        self.sky_class_conv = nn.Sequential(
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 1),
+        )
 
     def _make_decoder_block(self, in_channels: int, out_channels: int) -> nn.Sequential:
         """
@@ -124,7 +135,8 @@ class UNet(nn.Module):
         
         # Final output layer and resize to input resolution
         output = self.final_conv(d1)
+        class_output = self.sky_class_conv(d1)
         if output.size()[2:] != input_size:
             output = F.interpolate(output, size=input_size, mode='bilinear', align_corners=False)
 
-        return output
+        return output, class_output

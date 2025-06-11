@@ -23,7 +23,7 @@ class SkyFinderEmbeddingsDataset(Dataset):
     def _load_data(self) -> List[Tuple[Dict[str, Any], str]]:
         # Load the embeddings data from the JSON file.
         if not os.path.exists(SKY_FINDER_DESCRIPTORS_PATH):
-            raise FileNotFoundError(f"❌ Embeddings file not found at {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}.")
+            raise FileNotFoundError(f"❌ Sky Finder descriptors file not found at {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}.")
         
         with open(SKY_FINDER_DESCRIPTORS_PATH, 'r') as file:
             data = json.load(file)

@@ -48,11 +48,11 @@ else:
 
 print(f"Using base path: {BASE_PATH}")
 
-TRAIN_PATH = os.path.join(BASE_PATH, 'train')
-IMAGES_PATH = os.path.join(TRAIN_PATH, 'images')
-ENTROPY_PATH = os.path.join(TRAIN_PATH, 'entropies')
-BINARY_PRED_PATH = os.path.join(TRAIN_PATH, 'binary_predictions')
-CONTINUOUS_PRED_PATH = os.path.join(TRAIN_PATH, 'continuous_predictions')
+SPLIT_PATH = os.path.join(BASE_PATH, 'train')
+IMAGES_PATH = os.path.join(SPLIT_PATH, 'images')
+ENTROPY_PATH = os.path.join(SPLIT_PATH, 'entropies')
+BINARY_PRED_PATH = os.path.join(SPLIT_PATH, 'binary_predictions')
+CONTINUOUS_PRED_PATH = os.path.join(SPLIT_PATH, 'continuous_predictions')
 
 # Output paths for classified images
 KEEP_PATH = os.path.join(BASE_PATH, 'keep')
@@ -650,12 +650,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Sky Finder Active Learning Tool')
     parser.add_argument('--width', type=int, default=WINDOW_WIDTH, help='Window width')
     parser.add_argument('--height', type=int, default=WINDOW_HEIGHT, help='Window height')
+    parser.add_argument('--split', type=str, choices=['train', 'val'], default='train', help='Split to use (train or val)')
     
     args = parser.parse_args()
     
     # Update globals from command line
     WINDOW_WIDTH = args.width
     WINDOW_HEIGHT = args.height
+    SPLIT_PATH = os.path.join(BASE_PATH, args.split)
+    IMAGES_PATH = os.path.join(SPLIT_PATH, 'images')
+    ENTROPY_PATH = os.path.join(SPLIT_PATH, 'entropies')
+    BINARY_PRED_PATH = os.path.join(SPLIT_PATH, 'binary_predictions')
+    CONTINUOUS_PRED_PATH = os.path.join(SPLIT_PATH, 'continuous_predictions')
+    KEEP_PATH = os.path.join(BASE_PATH, f'{args.split}_keep')
+    DISCARD_PATH = os.path.join(BASE_PATH, f'{args.split}_discard')
     
     root = tk.Tk()
     app = SkyFinderActiveLearningTool(root)

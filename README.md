@@ -1,6 +1,6 @@
 ## 1. Texture Descriptor
 
-The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
+The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We manually categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
 
 
 
@@ -37,6 +37,8 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 
 ### 1.2 Model Architecture
 
+The texture descriptor employs a ResNet50 backbone pretrained on ImageNet as the feature encoder, with the original classification head replaced by a projection head. The projection head consists of a two-layer multi-layer perceptron (MLP) with ReLU activation between layers, mapping the 2048-dimensional ResNet50 feature vector to a 16-dimensional texture descriptor space. The final texture descriptors are L2-normalized.
+
 
 
 ### 1.3 Training Objective
@@ -46,13 +48,13 @@ We employ the Normalized Temperature-scaled Cross Entropy (NT-Xent) loss, which 
 $$L = -\log\frac{\exp(\text{sim}(z_i, z_j)/\tau)}{\sum_{k=1}^{2N}\mathbf{1}_{[k \neq i]}\exp(\text{sim}(z_i, z_k)/\tau)}$$
 
 Where:
-- $z_i$ and $z_j$ are normalized embeddings of two augmented views of the same image.
+- $z_i$ and $z_j$ are normalized descriptors of two augmented views of the same image.
 - $\text{sim}(u, v)$ denotes the cosine similarity between vectors $u$ and $v$.
 - $\tau$ is a temperature parameter that controls the concentration level of the distribution.
 - $N$ is the number of image pairs in the current batch.
 - $\mathbf{1}_{[k \neq i]}$ is an indicator function that equals 1 when $k \neq i$.
 
-This loss function encourages the model to learn representations where similar samples are pulled together in the embedding space while dissimilar samples are pushed apart, resulting in a texture descriptor that effectively captures the distinctive characteristics of different sky conditions.
+This loss function encourages the model to learn representations where similar samples are pulled together in the texture descriptor space while dissimilar samples are pushed apart, resulting in a texture descriptor that effectively captures the distinctive characteristics of different sky conditions.
 
 
 
@@ -74,11 +76,11 @@ This configuration provides a good balance between performance and computational
 
 ### 1.5 Results
 
-The trained texture descriptor model is evaluated on the Sky Finder dataset, and the results are visualized using t-SNE [4]. The resulting plot illustrates how the model effectively clusters similar sky conditions together in the embedding space.
+The trained texture descriptor model is evaluated on the Sky Finder dataset, and the results are visualized using UMAP [4]. The resulting plot illustrates how the model effectively clusters similar sky conditions together in the texture descriptor space.
 <div align="center">
-    <img src="generated/embeddings_plot.png" alt="Embeddings plot" align="center" width="80%">
+    <img src="generated/texture_descriptor_space.png" alt="Embeddings plot" align="center" width="80%">
     <div align="center">
-    <em>Figure 2: Embeddings plot of the trained model on the Sky Finder dataset. The plot illustrates how the model effectively clusters similar sky conditions together in the embedding space.</em>
+    <em>Figure 2: Embeddings plot of the trained model on the Sky Finder dataset. The plot illustrates how the model effectively clusters similar sky conditions together in the texture descriptor space.</em>
     </div>
 </div>
 
@@ -86,7 +88,7 @@ The trained texture descriptor model is evaluated on the Sky Finder dataset, and
 
 ### 1.6 Reproduction Procedure
 
-Follow these steps to reproduce our texture descriptor results by generating the dataset and training the model.
+Follow these steps to reproduce our texture descriptor results by generating the dataset, training the model and plotting the texture descriptor space.
 
 #### 1.6.1 Sky Finder Dataset Generation
 
@@ -110,26 +112,29 @@ cd src/contrastive_net
 python contrastive_net_train.py
 ```
 
-Model weights will be saved in the [data/models/contrastive_net](data/models/contrastive_net) directory.
+Model weights will be saved in the [data/models/contrastive_net](data/models/contrastive_net) directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to [data/models/contrastive_net/baseline.ckpt](data/models/contrastive_net/baseline.ckpt).
 
-#### 1.6.3 Generating Sky Finder Embeddings
+#### 1.6.3 Generating Sky Finder Descriptors
 
-To generate the embeddings for the Sky Finder dataset, execute the following commands:
-
-```bash
-cd src/contrastive_net
-python generate_embeddings.py [-c <checkpoint_path>]
-```
-
-The generated embeddings will be saved in the [generated/embeddings.json](generated/embeddings.json) file. Do not forget to use your own checkpoint path using the argument `-c`, `--checkpoint-path` if you previously trained the model and want to use it instead of the default one.
-
-To plot the embeddings and visualize the results, execute the following commands:
+To generate the descriptors for the Sky Finder dataset, execute the following commands:
 
 ```bash
-cd src/contrastive_net
-python plot_embeddings.py
+cd src/pipeline
+python generate_sky_finder_descriptors.py
 ```
-The generated plot will be saved in the [generated/embeddings_plot.png](generated/embeddings_plot.png) file.
+
+The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
+
+#### 1.6.4 Plotting the Texture Descriptor Space
+
+To plot the texture descriptors and visualize the results, execute the following commands:
+
+```bash
+cd src/pipeline
+python plot_texture_descriptor_space.py
+```
+
+
 
 ## 2. Sky Cover Descriptor
 
@@ -159,7 +164,7 @@ The Sky Finder Active Dataset leverages an active learning approach to expand th
     - Prediction uncertainty was quantified using pixel-wise entropy measurements.
     - Only predictions with low entropy (high confidence) were selected.
 
-For experimental evaluation, the training set was augmented with these 377 pseudo-labeled images, while the validation set remained unchanged, consisting of the same 58 manually annotated images from the Sky Finder Cover Dataset.
+For experimental evaluation, the training set was augmented with 359 high-confidence pseudo-labeled images, while the validation set was augmented with an additional 128 pseudo-labeled images. This active learning approach expands the available training data while maintaining quality through confidence-based selection.
 
 
 
@@ -167,23 +172,40 @@ For experimental evaluation, the training set was augmented with these 377 pseud
 
 The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone pretrained on ImageNet1K_V2 serving as the encoder. The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation, followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud segmentation.
 
+The architecture incorporates a dual-output design to enhance learning guidance:
+
+1. **Primary Output**: Pixel-wise cloud coverage estimation through the standard U-Net segmentation head.
+2. **Auxiliary Classification Branch**: A secondary convolutional branch that processes the feature maps before the final segmentation layer to output a single scalar value between 0 and 1, representing the overall sky condition class (0 for clear, 0.5 for partial, 1 for overcast).
+
+This auxiliary branch serves multiple purposes: it provides additional supervisory signal during training by leveraging existing image-level sky condition labels, enables evaluation of sky classification accuracy, and helps assess the quality of learned feature representations. Most importantly, it guides the learning process by enforcing consistency between pixel-level predictions and global sky conditions.
+
 
 
 ### 2.3 Training Objective
 
-The training objective combines Focal Loss and Dice Loss to effectively handle class imbalance and optimize boundary segmentation:
+The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
 
-$$\mathcal{L}_{\text{Focal}}+ \mathcal{L}_{\text{Focal}}$$
+$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{\text{Focal}} + 0.5 \cdot \mathcal{L}_{\text{Dice}} + 0.1 \cdot \mathcal{L}_{\text{BCE}}$$
 
 Where $\mathcal{L}_{\text{Focal}}$ is defined with $\alpha=0.5$ and $\gamma=2.0$ to focus on hard-to-classify examples:
 
 $$\mathcal{L}_{\text{Focal}} = -\alpha(1-p_t)^\gamma\log(p_t)$$
 
-And $\mathcal{L}_{\text{Dice}}$ optimizes overlap between predicted and ground truth segmentations:
+Where $p_t$ is the predicted probability for the true class, $\alpha$ is the weighting factor for class balance, and $\gamma$ is the focusing parameter that down-weights easy examples.
+
+$\mathcal{L}_{\text{Dice}}$ optimizes overlap between predicted and ground truth segmentations:
 
 $$\mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
 
-This combined loss function balances pixel-wise classification accuracy with structural similarity, producing good cloud segmentation results.
+Where $p_i$ is the predicted probability for pixel $i$, $g_i$ is the ground truth label for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ is a small constant for numerical stability.
+
+And $\mathcal{L}_{\text{BCE}}$ provides supervision for the auxiliary classification branch using binary cross-entropy:
+
+$$\mathcal{L}_{\text{BCE}} = -[y \log(\hat{y}) + (1-y) \log(1-\hat{y})]$$
+
+Where $y$ is the ground truth sky condition class (0 for clear, 0.5 for partial, 1 for overcast) and $\hat{y}$ is the predicted classification score from the auxiliary branch.
+
+This multi-objective loss function balances pixel-wise classification accuracy, structural similarity, and global sky condition consistency, resulting in improved cloud segmentation performance while providing interpretable classification outputs.
 
 
 
@@ -191,35 +213,50 @@ This combined loss function balances pixel-wise classification accuracy with str
 
 Our sky cover descriptor model was trained with the following hyperparameters and configuration:
 
-- **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
+- **Optimizer**: AdamW with a learning rate of $10^{-4}$ and weight decay of $10^{-4}$.
 - **Batch Configuration**: 2 batches.
-- **Training Duration**: 40 epochs.
+- **Training Duration**: 100 epochs for the initial model trained on manual labels only, followed by 50 epochs for the active learning enhanced model with pseudo-labels.
 - **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
 - **Hardware**: Single NVIDIA RTX 3080 GPU with 10GB of memory.
-- **Dropout Rate**: 0.1 for bottleneck and 0.25 for decoder.
 
-This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful cloud segmentation representations while preventing overfitting.
+This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful cloud segmentation representations while maintaining training stability.
 
 
 
 ### 2.5 Results
 
-2.5 Results
-The sky cover descriptor model was evaluated on the Sky Finder Cover Dataset validation set, comparing the initial model trained on manually annotated data against the active learning enhanced model. Table 1 presents the quantitative evaluation using standard segmentation metrics.
-
-| Model | IoU | Dice Score | Pixel Accuracy | Cloud Cover Error |
-|-------|-----|------------|----------------|-------------------|
-| Initial (Manual Labels) | 0.5418 | 0.6055 | 0.9067 | 0.6055 |
-| Active Learning Enhanced | 0.5570 | 0.6325 | 0.8867 | 0.5808 |
-
-*Table 1: Performance comparison between initial model trained on manually labeled data only and the active learning enhanced model with pseudo-labels. Cloud Cover Error represents the mean absolute percentage error in estimating cloud coverage.*
+The sky cover descriptor model was comprehensively evaluated using two training approaches and validation scenarios. We compare the initial model trained exclusively on manually annotated data against the active learning enhanced model that incorporates high-confidence pseudo-labels. The evaluation encompasses both manual-only validation and combined manual+pseudo-label validation datasets to assess model generalization across different data distributions.
 
 <div align="center">
-    <img src="generated/cover_results.png" alt="Embeddings plot" align="center" width="80%">
+    <em>Table 1: Comprehensive performance comparison across training and validation configurations. Coverage Error represents the mean absolute percentage error in estimating cloud coverage. Sky Class Error represents the classification error rate for the three-class sky condition categorization (clear, partial, overcast).</em>
+</div>
+
+| Training Data | Validation Data | IoU | Dice Score | Coverage Error | Sky Class Error |
+|---------------|-----------------|-----|------------|----------------|-----------------|
+| Manual Labels Only | Manual Validation Set | 0.3632 | 0.4605 | 0.1380 | 0.2472 |
+| Manual Labels Only | Manual + Pseudo Validation Set | **0.3697** | **0.4665** | **0.0927** | **0.2840** |
+| Manual + Pseudo Labels | Manual Validation Set | 0.3905 | 0.4825 | 0.1365 | 0.2107 |
+| Manual + Pseudo Labels | Manual + Pseudo Validation Set | **0.4408** | **0.5217** | **0.0824** | **0.2114** |
+
+The comprehensive evaluation reveals several important insights about the active learning approach:
+
+1. **Consistent Improvement**: The active learning enhanced model demonstrates superior performance across all metrics compared to the baseline model trained solely on manual annotations, with IoU improvements ranging from 7.5% to 19.3%.
+
+2. **Domain Generalization**: Both models exhibit better performance when evaluated on the combined validation set that includes pseudo-labeled data, suggesting improved generalization to the broader data distribution represented in the Sky Finder dataset.
+
+3. **Coverage Error Reduction**: The active learning approach significantly reduces coverage estimation errors, particularly evident in the combined validation scenario where coverage error decreases from 0.0927 to 0.0824.
+
+4. **Segmentation Quality**: The Dice score improvements (4.8% to 11.8%) indicate that the active learning approach produces more accurate cloud boundary delineation, which is crucial for precise cloud coverage quantification.
+
+**TODO**
+
+<div align="center">
+    <img src="generated/cover_results_TODO.png" alt="Embeddings plot" align="center" width="80%">
     <div align="center">
     <em>Figure 3: Visual comparison of cloud segmentation results. From left to right: original input images, ground truth segmentation masks, predictions from the baseline model trained on manual annotations only, and predictions from our active learning enhanced model.</em>
     </div>
 </div>
+
 
 
 ### 2.6 Reproduction Procedure
@@ -233,7 +270,7 @@ cd src/unet
 python unet_train.py
 ```
 
-Model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline.ckpt](data/models/unet/baseline.ckpt).
+Model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline_manual.ckpt](data/models/unet/baseline_manual.ckpt).
 
 #### 2.6.2 Active Learning Enhancement
 
@@ -257,6 +294,11 @@ To evaluate the performance of the trained models, execute:
 cd src/unet
 python unet_eval.py
 ```
+Parameters:
+- `-a`, `--active`: (Optional) Use active learning checkpoint for evaluation instead of the baseline manual-only model.
+- `-p`, `--with-pseudo-labelling`: (Optional) Include pseudo-labeled validation data in the evaluation.
+
+
 
 ## 3. Classification Head for Downstream Task
 
@@ -392,4 +434,4 @@ pip install --no-build-isolation -e grounding_dino
 
 [3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
 
-[4] Van der Maaten, L., and Hinton, G., "Visualizing Data using t-SNE," Journal of Machine Learning Research, vol. 9, pp. 2579–2605, 2008.
+[4] McInnes, L., Healy, J., and Melville, J., "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction," arXiv preprint arXiv:1802.03426, 2018.

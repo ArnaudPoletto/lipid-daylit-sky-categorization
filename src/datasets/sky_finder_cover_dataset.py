@@ -20,7 +20,7 @@ from src.config import (
     SKY_FINDER_PATH,
     SKY_FINDER_HEIGHT,
     SKY_FINDER_COVER_PATH,
-    SKY_FINDER_ACTIVE_KEEP_PATH,
+    SKY_FINDER_ACTIVE_PATH,
 )
 
 
@@ -90,15 +90,18 @@ class SkyFinderCoverDataset(Dataset):
 
         return all_images, all_ground_truths
 
-    def _get_pseudo_labelling_data(self) -> Tuple[List[str], List[str]]:
+    def _get_pseudo_labelling_data(self, split: str) -> Tuple[List[str], List[str]]:
         """
         Get the paths of all images and ground truth images in the dataset.
+
+        Args:
+            split (str): The split of the dataset, can be "train" or "val".
 
         Returns:
             Tuple[List[str], List[str]]: List of image paths and ground truth image paths.
         """
         all_jpg_files = get_paths_recursive(
-            folder_path=SKY_FINDER_ACTIVE_KEEP_PATH,
+            folder_path=f"{SKY_FINDER_ACTIVE_PATH}{split}_keep/",
             match_pattern="*.jpg",
             path_type="f",
             recursive=True,
@@ -107,13 +110,18 @@ class SkyFinderCoverDataset(Dataset):
         datetime_pattern = re.compile(r"/\d{8}_\d{6}\.jpg$")
         all_images = [path for path in all_jpg_files if datetime_pattern.search(path)]
 
-        ground_truth_pattern = re.compile(r"/binary_\d{8}_\d{6}\.jpg$")
-        ground_truth_images = [
-            path for path in all_jpg_files if ground_truth_pattern.search(path)
-        ]
-
+        ground_truth_images = []
+        for path in all_jpg_files:
+            sky_class = path.split("/")[-3]
+            if sky_class in ["clear", "overcast", ]:
+                ground_truth_pattern = re.compile(r"/binary_\d{8}_\d{6}\.jpg$")
+            else:
+                ground_truth_pattern = re.compile(r"/continuous_\d{8}_\d{6}\.jpg$")
+            if ground_truth_pattern.search(path):
+                ground_truth_images.append(path)
+            
         print(
-            f"✅ Found {len(all_images)} images and {len(ground_truth_images)} ground truth images."
+            f"✅ Found {len(all_images)} images and {len(ground_truth_images)} ground truth images in the {split} split for pseudo labelling."
         )
         return all_images, ground_truth_images
 
@@ -122,6 +130,7 @@ class SkyFinderCoverDataset(Dataset):
         path: str,
         use_augmentations: bool,
         with_pseudo_labelling: bool,
+        split: str,
     ) -> None:
         """
         Initialize the SkyFinderCoverDataset class.
@@ -130,7 +139,10 @@ class SkyFinderCoverDataset(Dataset):
             path (str): Path to the dataset.
             use_augmentations (bool): Whether to use augmentations.
             with_pseudo_labelling (bool): Whether to use pseudo labelling.
+            split (str): The split of the dataset, can be "train" or "val".
         """
+        if split not in ["train", "val"]:
+            raise ValueError(f"❌ Invalid split '{split}'. Must be one of 'train' or 'val'.")
         super(SkyFinderCoverDataset, self).__init__()
 
         self.path = path
@@ -141,7 +153,7 @@ class SkyFinderCoverDataset(Dataset):
 
         if with_pseudo_labelling:
             self.all_pl_images, self.all_pl_ground_truths = (
-                self._get_pseudo_labelling_data()
+                self._get_pseudo_labelling_data(split=split)
             )
             self.all_images += self.all_pl_images
             self.all_ground_truths += self.all_pl_ground_truths
@@ -305,7 +317,7 @@ class SkyFinderCoverDataset(Dataset):
 
         return ground_truth
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get a sample from the dataset.
 
@@ -313,7 +325,7 @@ class SkyFinderCoverDataset(Dataset):
             idx (int): The index of the sample.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The image and ground truth tensors.
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The image, ground truth and sky class tensors.
         """
         image_path = self.all_images[idx]
         ground_truth_path = self.all_ground_truths[idx]
@@ -331,9 +343,17 @@ class SkyFinderCoverDataset(Dataset):
         ground_truth = self.ground_truth_transform(image=ground_truth)["image"]
         ground_truth = ground_truth / 255.0
 
-        ground_truth = torch.where(ground_truth > 0.4, 1.0, 0.0).float()
+        # Get sky class from path
+        sky_class = image_path.split("/")[-3]
+        sky_class = ["clear", "partial", "overcast"].index(sky_class)
+        if sky_class == -1:
+            raise ValueError(
+                f"❌ Sky class {sky_class} not found in image path: {image_path}."
+            )
+        sky_class = sky_class / 2.0  # Normalize to [0, 1]
+        sky_class = torch.tensor(sky_class, dtype=torch.float).unsqueeze(-1)
 
-        return image, ground_truth
+        return image, ground_truth, sky_class
 
 
 class SkyFinderCoverModule(pl.LightningDataModule):
@@ -387,11 +407,13 @@ class SkyFinderCoverModule(pl.LightningDataModule):
                 path=f"{SKY_FINDER_COVER_PATH}train",
                 use_augmentations=True,
                 with_pseudo_labelling=self.with_pseudo_labelling,
+                split="train",
             )
             self.val_dataset = SkyFinderCoverDataset(
                 path=f"{SKY_FINDER_COVER_PATH}val",
                 use_augmentations=False,
                 with_pseudo_labelling=self.with_pseudo_labelling,
+                split="val",
             )
         if stage == "test" or stage is None:
             pass

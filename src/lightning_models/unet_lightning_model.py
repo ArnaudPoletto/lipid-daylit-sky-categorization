@@ -43,6 +43,7 @@ class UNetLightningModel(pl.LightningModule):
         self.dataset = dataset
         self.criterion1 = FocalLoss(alpha=0.5, gamma=2.0)
         self.criterion2 = DiceLoss()
+        self.criterion3 = nn.BCEWithLogitsLoss()
 
     def on_train_epoch_start(self) -> None:
         """
@@ -86,24 +87,18 @@ class UNetLightningModel(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        x, cloud_y = batch
-        y_pred = self.model(x)
-        if isinstance(y_pred, dict):
-            y_pred = y_pred["out"]
-        y_pred = y_pred[:, 0, :, :].unsqueeze(1)
+        x, y, sky_class = batch
+        y_pred, sky_class_pred = self.model(x)
 
-        loss1 = self.criterion1(y_pred, cloud_y)
-        loss2 = self.criterion2(y_pred, cloud_y)
-        loss = loss1 + loss2
+        loss1 = self.criterion1(y_pred, y)
+        loss2 = self.criterion2(y_pred, y)
+        loss3 = self.criterion3(sky_class_pred, sky_class)
+        loss = 0.5 * loss1 + 0.5 * loss2 + 0.1 * loss3
 
-        self.log(
-            f"{step_type}_loss",
-            loss,
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-        )
         self.log(f"{step_type}_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(f"{step_type}_focal_loss", loss1, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(f"{step_type}_dice_loss", loss2, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(f"{step_type}_bce_loss", loss3, on_step=True, on_epoch=True, sync_dist=True)
 
         return loss
 

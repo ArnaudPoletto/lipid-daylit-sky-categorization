@@ -9,22 +9,24 @@ from typing import Optional, Tuple, Dict, Any
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.pipeline.sky_segmentation import get_sky_mask
+from src.models.unet import UNet
 from src.pipeline.texture_descriptor import (
     get_texture_descriptor,
     get_sky_finder_texture_descriptors,
     get_fitted_umap_reducer,
     plot_sky_finder_texture_descriptors,
 )
-from src.pipeline.sky_classification import get_sky_class
+from src.pipeline.sky_cover import get_sky_cover
 from src.models.sky_class_net import SkyClassNet
 from src.models.contrastive_net import ContrastiveNet
+from src.pipeline.sky_segmentation import get_sky_mask
+from src.pipeline.sky_classification import get_sky_class
+from src.pipeline.sky_cover import get_model as get_sky_cover_model
 from src.pipeline.texture_descriptor import get_model as get_texture_model
 from src.pipeline.sky_classification import get_model as get_sky_class_model
 from src.pipeline.sky_segmentation import get_models as get_sky_segmentation_models
 from src.config import (
     GENERATED_PIPELINE_PATH,
-    DEVICE,
 )
 
 
@@ -91,6 +93,7 @@ def process_frame(
     text_threshold: float,
     texture_model: ContrastiveNet,
     sky_class_model: SkyClassNet,
+    sky_cover_model: UNet,
 ) -> Dict[str, Any]:
     """
     Process a single video frame, applying a mask if provided and displaying it.
@@ -109,6 +112,7 @@ def process_frame(
         text_threshold (float): Threshold for sky text detection.
         texture_model (ContrastiveNet): Texture descriptor model.
         sky_class_model (SkyClassNet): Sky classification model.
+        sky_cover_model (UNet): Sky cover model.
 
     Returns:
         Dict[str, Any]: A dictionary containing the sky mask, bounding box, and descriptors.
@@ -146,11 +150,11 @@ def process_frame(
     # Apply inpainting to fill the masked area
     if sky_mask is not None:
         inpaint_mask = (~(sky_mask.astype(np.bool))).astype(np.uint8) * 255
-        frame = cv2.inpaint(frame, inpaint_mask, 3, cv2.INPAINT_TELEA)
+        inpainted_frame = cv2.inpaint(frame, inpaint_mask, 3, cv2.INPAINT_TELEA)
 
     # Get texture descriptor
     texture_descriptor = get_texture_descriptor(
-        frame=frame,
+        frame=inpainted_frame,
         model=texture_model,
     )
     normalized_texture_descriptor = texture_descriptor / np.linalg.norm(texture_descriptor)
@@ -161,11 +165,18 @@ def process_frame(
         model=sky_class_model,
     )
 
+    # Get sky cover prediction
+    sky_cover = get_sky_cover(
+        frame=frame,
+        model=sky_cover_model,
+    )
+
     return {
         "sky_mask": sky_mask,
         "sky_bounding_box": sky_bounding_box,
         "texture_descriptor": normalized_texture_descriptor.tolist(),
         "sky_class": int(sky_class),
+        "sky_cover": float(sky_cover),
     }
 
 
@@ -201,6 +212,7 @@ def process_video(
     text_threshold: float,
     texture_model: ContrastiveNet,
     sky_class_model: SkyClassNet,
+    sky_cover_model: UNet,
 ) -> Dict[str, Any]:
     """
     Process the video frames with a specified frame step.
@@ -217,6 +229,7 @@ def process_video(
         text_threshold (float): Threshold for sky text detection.
         texture_model (ContrastiveNet): Texture descriptor model.
         sky_class_model (SkyClassNet): Sky classification model.
+        sky_cover_model (UNet): Sky cover model.
 
     Raises:
         ValueError: If frame_step is not a positive integer.
@@ -247,37 +260,40 @@ def process_video(
         if not ret:
             break
 
-        if frame_count % frame_step == 0:
-            frame_dict = process_frame(
-                frame=frame,
-                mask=mask,
-                bounds=bounds,
-                sky_mask=sky_mask,
-                sky_bounding_box=sky_bounding_box,
-                image_predictor=image_predictor if sky_mask is None else None,
-                grounding_processor=grounding_processor if sky_mask is None else None,
-                grounding_model=grounding_model if sky_mask is None else None,
-                box_threshold=box_threshold,
-                text_threshold=text_threshold,
-                texture_model=texture_model,
-                sky_class_model=sky_class_model,
-            )
+        frame_dict = process_frame(
+            frame=frame,
+            mask=mask,
+            bounds=bounds,
+            sky_mask=sky_mask,
+            sky_bounding_box=sky_bounding_box,
+            image_predictor=image_predictor if sky_mask is None else None,
+            grounding_processor=grounding_processor if sky_mask is None else None,
+            grounding_model=grounding_model if sky_mask is None else None,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
+            texture_model=texture_model,
+            sky_class_model=sky_class_model,
+            sky_cover_model=sky_cover_model,
+        )
 
-            if sky_mask is None:
-                sky_mask = frame_dict.get("sky_mask")
-            if sky_bounding_box is None:
-                sky_bounding_box = frame_dict.get("sky_bounding_box")
+        if sky_mask is None:
+            sky_mask = frame_dict.get("sky_mask")
+        if sky_bounding_box is None:
+            sky_bounding_box = frame_dict.get("sky_bounding_box")
 
-            texture_descriptor = frame_dict.get("texture_descriptor")
-            sky_class = frame_dict.get("sky_class")
-            video_dict[frame_count] = {
-                "texture_descriptor": texture_descriptor,
-                "sky_class": sky_class,
-            }
+        texture_descriptor = frame_dict.get("texture_descriptor")
+        sky_class = frame_dict.get("sky_class")
+        sky_cover = frame_dict.get("sky_cover")
+        video_dict[frame_count] = {
+            "texture_descriptor": texture_descriptor,
+            "sky_class": sky_class,
+            "sky_cover": sky_cover,
+        }
 
-            bar.update(1)
-
-        frame_count += 1
+        # Update to next frame
+        bar.update(1)
+        frame_count += frame_step
+        video.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
     video.release()
     bar.close()
 
@@ -286,12 +302,16 @@ def process_video(
         np.array([video_dict[frame]["texture_descriptor"] for frame in video_dict]),
         axis=0,
     )
+    mean_sky_cover = np.mean(
+        [video_dict[frame]["sky_cover"] for frame in video_dict]
+    ).item()
 
     majority_sky_class = np.bincount(
         [video_dict[frame]["sky_class"] for frame in video_dict]
     ).argmax()
     video_dict["mean_texture_descriptor"] = mean_texture_descriptor.tolist()
-    video_dict["sky_class"] = int(majority_sky_class)
+    video_dict["majority_sky_class"] = int(majority_sky_class)
+    video_dict["mean_sky_cover"] = float(mean_sky_cover)
 
     return video_dict
 
@@ -408,6 +428,7 @@ def main() -> None:
     )
     texture_model = get_texture_model()
     sky_class_model = get_sky_class_model()
+    sky_cover_model = get_sky_cover_model()
 
     # Process video frames if not already generated
     video_dict_path = (
@@ -431,6 +452,7 @@ def main() -> None:
             text_threshold=text_threshold,
             texture_model=texture_model,
             sky_class_model=sky_class_model,
+            sky_cover_model=sky_cover_model,
         )
 
         # Save processed video results

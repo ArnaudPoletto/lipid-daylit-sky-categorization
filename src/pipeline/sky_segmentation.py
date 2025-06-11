@@ -21,7 +21,7 @@ def get_models(
     gdino_type: str = "tiny",
 ) -> Tuple[SAM2ImagePredictor, AutoProcessor, AutoModelForZeroShotObjectDetection]:
     """
-    Initialize and return the SAM2 model, the Grounding DINO processor, and the Grounding DINO model.
+    Load the pretrained SAM2 model, Grounding DINO processor, and Grounding DINO model.
 
     Args:
         sam2_type (str): Type of SAM2 model to use. Options are 'tiny', 'small', 'base', or 'large'.

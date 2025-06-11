@@ -39,9 +39,8 @@ CRITERION_TEMPERATURE = 0.5
 
 # Cloud coverage estimator
 SKY_FINDER_COVER_PATH = f"{DATA_PATH}sky_finder_cover/"
-SKY_FINDER_ACTIVE_PATH = f"{DATA_PATH}sky_finder_active/"
-SKY_FINDER_ACTIVE_KEEP_PATH = f"{SKY_FINDER_ACTIVE_PATH}keep/"
-UNET_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline.ckpt"
+SKY_FINDER_ACTIVE_PATH = f"{DATA_PATH}sky_finder_active_learning/"
+UNET_MANUAL_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline_manual.ckpt"
 UNET_ACTIVE_CHECKPOINT_PATH = f"{MODELS_PATH}unet/baseline_active.ckpt"
 
 SKY_COVER_MAX_GROUND_TRUTH_VALUE = 224

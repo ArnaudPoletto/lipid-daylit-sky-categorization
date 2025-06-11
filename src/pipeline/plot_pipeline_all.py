@@ -20,9 +20,9 @@ from src.config import (
 )
 
 
-def get_processed_video_files() -> List[str]:
+def get_processed_video_file_paths() -> List[str]:
     """
-    Get all processed video JSON files from the specified directory.
+    Get all processed video JSON file paths from the specified directory.
 
     Returns:
         List[str]: List of JSON file paths.
@@ -63,6 +63,10 @@ def load_video_data(json_file_path: str) -> Dict[str, Any]:
             raise ValueError(
                 f"❌ Mean texture descriptor not found in {json_file_path}"
             )
+        if "majority_sky_class" not in video_data:
+            raise ValueError(
+                f"❌ Majority sky class not found in {json_file_path}"
+            )
 
         return video_data
     except json.JSONDecodeError as e:
@@ -71,41 +75,36 @@ def load_video_data(json_file_path: str) -> Dict[str, Any]:
         raise IOError(f"❌ Could not read {json_file_path}: {e}")
 
 
-def collect_data(json_files: List[str]) -> tuple:
+def collect_data(json_file_paths: List[str]) -> tuple:
     """
-    Collect data from all processed video JSON files.
+    Collect data from all processed video JSON file paths.
 
     Args:
-        json_files (List[str]): List of JSON file paths.
+        json_file_paths (List[str]): List of JSON file paths.
 
     Returns:
-        tuple: (texture_descriptors_array, video_names_list)
+        tuple: (texture_descriptors_array, sky_classes, video_names_list)
     """
     all_texture_descriptors = []
     sky_classes = []
     video_names = []
 
-    print(f"📖 Loading texture descriptors from {len(json_files)} video(s)...")
+    print(f"📖 Loading texture descriptors from {len(json_file_paths)} video(s)...")
 
-    for json_file in json_files:
-        try:
-            video_data = load_video_data(json_file)
-            mean_texture_descriptor = np.array(video_data["mean_texture_descriptor"])
-            sky_class = video_data.get("sky_class")
-            all_texture_descriptors.append(mean_texture_descriptor)
-            sky_classes.append(sky_class)
+    for json_file_path in json_file_paths:
+        video_data = load_video_data(json_file_path)
+        mean_texture_descriptor = np.array(video_data["mean_texture_descriptor"])
+        sky_class = video_data.get("majority_sky_class")
+        all_texture_descriptors.append(mean_texture_descriptor)
+        sky_classes.append(sky_class)
 
-            # Extract video name from filename (remove _processed.json)
-            video_name = (
-                os.path.basename(json_file)
-                .replace("_processed.json", "")
-                .replace("_", ".")
-            )
-            video_names.append(video_name)
-
-        except Exception as e:
-            print(f"⚠️  Skipping {os.path.basename(json_file)}: {e}")
-            continue
+        # Extract video name from filename (remove _processed.json)
+        video_name = (
+            os.path.basename(json_file_path)
+            .replace("_processed.json", "")
+            .replace("_", ".")
+        )
+        video_names.append(video_name)
 
     return np.array(all_texture_descriptors), np.array(sky_classes), video_names
 
@@ -176,48 +175,17 @@ def plot_all_videos(
     )
 
 
-def parse_args() -> argparse.Namespace:
-    """
-    Parse command line arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Plot texture descriptors for all processed videos in UMAP space."
-    )
-
-    parser.add_argument(
-        "--list-videos",
-        "-lv",
-        action="store_true",
-        help="List all available processed videos and exit.",
-    )
-
-    return parser.parse_args()
-
-
 def main() -> None:
     """
     Main function to plot all processed videos' texture descriptors.
     """
-    args = parse_args()
 
     # Get all processed video JSON files
-    json_files = get_processed_video_files()
-    print(f"➡️  Found {len(json_files)} processed video file(s)")
-
-    # If user just wants to list videos, do that and exit
-    if args.list_videos:
-        print("\n📋 Available processed videos:")
-        for i, json_file in enumerate(json_files, 1):
-            video_name = (
-                os.path.basename(json_file)
-                .replace("_processed.json", "")
-                .replace("_", ".")
-            )
-            print(f"  {i:2d}. {video_name}")
-        return
+    json_file_paths = get_processed_video_file_paths()
+    print(f"➡️  Found {len(json_file_paths)} processed video file(s).")
 
     # Collect all texture descriptors
-    all_texture_descriptors, all_sky_classes, video_names = collect_data(json_files)
+    all_texture_descriptors, all_sky_classes, video_names = collect_data(json_file_paths)
 
     # Plot all videos
     plot_all_videos(
