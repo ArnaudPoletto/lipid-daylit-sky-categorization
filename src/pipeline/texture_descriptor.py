@@ -8,9 +8,12 @@ import matplotlib
 import numpy as np
 import albumentations as A
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from sklearn.cluster import KMeans
 from adjustText import adjust_text
 from scipy.spatial import ConvexHull
-from typing import Optional, List, Tuple
+from sklearn.preprocessing import normalize
+from typing import Optional, List, Tuple, Dict
 from albumentations.pytorch.transforms import ToTensorV2
 
 matplotlib.use("TkAgg")
@@ -23,6 +26,7 @@ from src.config import (
     CONTRASTIVE_CHECKPOINT_PATH,
     SKY_FINDER_HEIGHT,
     SKY_FINDER_WIDTH,
+    SKY_FINDER_PATH,
     PROJECTION_DIM,
     DEVICE,
     SEED,
@@ -103,6 +107,28 @@ def get_texture_descriptor(
 
     return features[0]
 
+def get_kmeans_groups(
+        texture_descriptors: np.ndarray,
+        k: int,
+) -> List[int]:
+    """
+    Group texture descriptors using k-means clustering.
+
+    Args:
+        texture_descriptors (np.ndarray): The texture descriptors to cluster.
+        k (int): The number of clusters to form.
+
+    Returns:
+        np.ndarray: The cluster labels for each texture descriptor.
+    """
+    normalized_descriptors = normalize(texture_descriptors, norm='l2')
+
+    kmeans = KMeans(n_clusters=k, random_state=SEED, n_init=10)
+    cluster_labels = kmeans.fit_predict(normalized_descriptors)
+
+    return cluster_labels.tolist()
+
+
 
 def get_sky_finder_texture_descriptors() -> Tuple[np.ndarray, List[str]]:
     if not os.path.exists(SKY_FINDER_DESCRIPTORS_PATH):
@@ -118,6 +144,7 @@ def get_sky_finder_texture_descriptors() -> Tuple[np.ndarray, List[str]]:
     # Get the texture descriptors for the test set
     test_sky_finder_texture_descriptors_dict = {}
     sky_classes = []
+    image_paths = []
     for sky_class, camera_dict in test_sky_finder_descriptors.items():
         for camera_id, sample_dict in camera_dict.items():
             for sample_id, descriptors in sample_dict.items():
@@ -125,6 +152,8 @@ def get_sky_finder_texture_descriptors() -> Tuple[np.ndarray, List[str]]:
                     f"{sky_class}_{camera_id}_{sample_id}"
                 ] = np.array(descriptors["contrastive_embeddings"])
                 sky_classes.append(sky_class)
+                image_path = f"{SKY_FINDER_PATH}test/{sky_class}/{camera_id}/{sample_id}"
+                image_paths.append(image_path)
 
     # Ensure the descriptors are in the correct format
     n_samples = len(test_sky_finder_texture_descriptors_dict)
@@ -134,7 +163,7 @@ def get_sky_finder_texture_descriptors() -> Tuple[np.ndarray, List[str]]:
     for i, (key, value) in enumerate(test_sky_finder_texture_descriptors_dict.items()):
         sky_finder_texture_descriptors[i] = value
 
-    return sky_finder_texture_descriptors, sky_classes
+    return sky_finder_texture_descriptors, sky_classes, image_paths
 
 def get_fitted_umap_reducer(
     sky_finder_texture_descriptors: np.ndarray,
@@ -159,6 +188,8 @@ def plot_sky_finder_texture_descriptors(
     fitted_umap: umap.UMAP,
     sky_finder_texture_descriptors: np.ndarray,
     colors: Optional[List[str]] = None,
+    color_labels: Optional[Dict[str, str]] = None,
+    image_paths: Optional[List[str]] = None,
     oos_texture_descriptors: Optional[np.ndarray] = None,
     oos_colors: Optional[List[str]] = None,
     oos_labels: Optional[List[str]] = None,
@@ -172,32 +203,50 @@ def plot_sky_finder_texture_descriptors(
         raise ValueError(
             "❌ The number of colors must match the number of Sky Finder texture descriptors."
         )
+    if image_paths is not None and len(image_paths) != len(sky_finder_texture_descriptors):
+            raise ValueError("❌ The number of image paths must match the number of texture descriptors.")
     if oos_as_convex_hull and len(oos_labels) != 1:
         raise ValueError(
             "❌ If out-of-sample descriptors are plotted as a convex hull, there must be exactly one label."
         )
     
+    
+    # Project descriptors to 2D
     projected_descriptors = fitted_umap.transform(sky_finder_texture_descriptors)
     if oos_texture_descriptors is not None:
         projected_oos_descriptors = fitted_umap.transform(oos_texture_descriptors)
     else:
         projected_oos_descriptors = None
 
-    plt.figure(figsize=(15, 15))
-    plt.scatter(
+    # Create figure
+    interactive = image_paths is not None
+    if interactive:
+        fig = plt.figure(figsize=(20, 15))
+        gs = fig.add_gridspec(1, 2, width_ratios=[3, 1])
+        ax_main = fig.add_subplot(gs[0, 0])
+        ax_image = fig.add_subplot(gs[0, 1])
+        ax_image.set_title("Hover over points to see images")
+        ax_image.axis('off')
+    else:
+        fig, ax_main = plt.subplots(figsize=(15, 15))
+
+    # Plot main scatter
+    scatter = ax_main.scatter(
         projected_descriptors[:, 0],
         projected_descriptors[:, 1],
         s=10,
         alpha=0.7 if oos_texture_descriptors is None else 0.1,
         color=colors if colors is not None else "blue",
     )
+
+    # Plot out-of-sample descriptors if provided
     if projected_oos_descriptors is not None:
         if oos_as_convex_hull and len(projected_oos_descriptors) >= 3:
             hull = ConvexHull(projected_oos_descriptors)
 
             # Plot the convex hull area
             for simplex in hull.simplices:
-                plt.plot(
+                ax_main.plot(
                     projected_oos_descriptors[simplex, 0], 
                     projected_oos_descriptors[simplex, 1], 
                     color="gray", 
@@ -207,7 +256,7 @@ def plot_sky_finder_texture_descriptors(
             
             # Fill the convex hull area
             hull_points = projected_oos_descriptors[hull.vertices]
-            plt.fill(
+            ax_main.fill(
                 hull_points[:, 0], 
                 hull_points[:, 1], 
                 color="gray", 
@@ -215,7 +264,7 @@ def plot_sky_finder_texture_descriptors(
             )
             
             # Plot individual points within the hull
-            plt.scatter(
+            ax_main.scatter(
                 projected_oos_descriptors[:, 0],
                 projected_oos_descriptors[:, 1],
                 s=50,
@@ -224,7 +273,7 @@ def plot_sky_finder_texture_descriptors(
                 marker="x",
             )
         else:
-            scatter_points = plt.scatter(
+            scatter_points = ax_main.scatter(
                 projected_oos_descriptors[:, 0],
                 projected_oos_descriptors[:, 1],
                 s=50,
@@ -237,7 +286,7 @@ def plot_sky_finder_texture_descriptors(
             if oos_labels is not None:
                 texts = []
                 for i, label in enumerate(oos_labels):
-                    text = plt.text(
+                    text = ax_main.text(
                         projected_oos_descriptors[i, 0],
                         projected_oos_descriptors[i, 1],
                         label,
@@ -262,18 +311,61 @@ def plot_sky_finder_texture_descriptors(
                     objects=scatter_points,
                 )
 
-    plt.title("UMAP Visualization of Sky Finder Test Set Texture Descriptors")
-    plt.xlabel("UMAP Dimension 1")
-    plt.ylabel("UMAP Dimension 2")
-    plt.grid(True, alpha=0.3)
-    if colors is not None:
-        unique_colors = set(colors)
-        color_labels = {
-            "blue": "clear",
-            "orange": "partial",
-            "red": "overcast"
-        }
+    # Set labels and title
+    ax_main.set_title("UMAP Visualization of Sky Finder Test Set Texture Descriptors")
+    ax_main.set_xlabel("UMAP Dimension 1")
+    ax_main.set_ylabel("UMAP Dimension 2")
+    ax_main.grid(True, alpha=0.3)
+
+    # Add legend if color labels are provided
+    if colors is not None and color_labels is not None:
+        unique_colors = set(color_labels.keys())
         handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10) for color in unique_colors]
         labels = [color_labels[color] for color in unique_colors]
         plt.legend(handles, labels, title="Sky Class", loc="upper right")
+
+    # Add interactive functionality
+    if interactive:
+        def on_hover(event):
+            if event.inaxes == ax_main:
+                # Find the closest point
+                if event.xdata is not None and event.ydata is not None:
+                    distances = np.sqrt((projected_descriptors[:, 0] - event.xdata)**2 + 
+                                      (projected_descriptors[:, 1] - event.ydata)**2)
+                    closest_idx = np.argmin(distances)
+                    
+                    if distances[closest_idx] < 0.1:
+                        load_and_display_image(closest_idx)
+        
+        def load_and_display_image(idx):
+            """Load and display image only when needed."""
+            try:
+                image_path = image_paths[idx]
+                if os.path.exists(image_path):
+                    # Clear previous image
+                    ax_image.clear()
+                    ax_image.set_title(f"Point {idx}: {os.path.basename(image_path)}")
+                    ax_image.axis('off')
+                    
+                    # Load and display image
+                    try:
+                        img = mpimg.imread(image_path)
+                        ax_image.imshow(img)
+                        fig.canvas.draw_idle()
+                    except Exception as e:
+                        ax_image.text(0.5, 0.5, f"Error loading image\\n{str(e)}", ha='center', va='center', transform=ax_image.transAxes)
+                        fig.canvas.draw_idle()
+                else:
+                    ax_image.clear()
+                    ax_image.set_title("Image not found")
+                    ax_image.text(0.5, 0.5, f"File not found:\\n{image_path}", ha='center', va='center', transform=ax_image.transAxes)
+                    ax_image.axis('off')
+                    fig.canvas.draw_idle()
+            except Exception as e:
+                print(f"Error displaying image {idx}: {e}")
+        
+        # Connect events
+        fig.canvas.mpl_connect('motion_notify_event', on_hover)
+
+    plt.tight_layout()
     plt.show()

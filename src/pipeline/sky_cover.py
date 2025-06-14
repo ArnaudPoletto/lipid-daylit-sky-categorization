@@ -73,7 +73,7 @@ def get_sky_cover(
 
     # Get the sky cover
     with torch.no_grad():
-        y_pred = model(frame)
+        y_pred, _ = model(frame)
         y_pred = torch.sigmoid(y_pred[0, 0, :, :])  # Get the first channel
     y_pred = y_pred.cpu().numpy()
 

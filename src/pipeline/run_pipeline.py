@@ -21,6 +21,7 @@ from src.models.sky_class_net import SkyClassNet
 from src.models.contrastive_net import ContrastiveNet
 from src.pipeline.sky_segmentation import get_sky_mask
 from src.pipeline.sky_classification import get_sky_class
+from src.pipeline.sky_optical_flow import get_optical_flow
 from src.pipeline.sky_cover import get_model as get_sky_cover_model
 from src.pipeline.texture_descriptor import get_model as get_texture_model
 from src.pipeline.sky_classification import get_model as get_sky_class_model
@@ -82,6 +83,7 @@ def get_mask(mask_path: Optional[str]) -> Optional[np.ndarray]:
 
 def process_frame(
     frame: np.ndarray,
+    previous_frame: Optional[np.ndarray],
     mask: Optional[np.ndarray],
     bounds: Optional[Tuple[int, int, int, int]],
     sky_mask: Optional[np.ndarray],
@@ -100,6 +102,7 @@ def process_frame(
 
     Args:
         frame (np.ndarray): The video frame to process.
+        previous_frame (Optional[np.ndarray]): The previous video frame for comparison.
         mask (Optional[np.ndarray]): Binary mask to apply to the frame.
         bounds (Optional[Tuple[int, int, int, int]]): Bounding box coordinates to crop the frame.
         texture_model (Optional[object]): Texture descriptor model.
@@ -121,6 +124,9 @@ def process_frame(
     if mask is not None:
         frame *= mask[:, :, np.newaxis]
         frame = frame[bounds[1] : bounds[3], bounds[0] : bounds[2]]
+        if previous_frame is not None:
+            previous_frame *= mask[:, :, np.newaxis]
+            previous_frame = previous_frame[bounds[1] : bounds[3], bounds[0] : bounds[2]]
 
     # Get sky mask if models are provided
     compute_sky_mask = (
@@ -144,8 +150,12 @@ def process_frame(
     if sky_bounding_box is not None:
         x_min, y_min, x_max, y_max = sky_bounding_box
         frame = frame[y_min:y_max, x_min:x_max]
+        if previous_frame is not None:
+            previous_frame = previous_frame[y_min:y_max, x_min:x_max]
     if sky_mask is not None:
         frame *= sky_mask[:, :, np.newaxis]
+        if previous_frame is not None:
+            previous_frame *= sky_mask[:, :, np.newaxis]
 
     # Apply inpainting to fill the masked area
     if sky_mask is not None:
@@ -171,12 +181,31 @@ def process_frame(
         model=sky_cover_model,
     )
 
+    # Get optical flow magnitude
+    if previous_frame is not None:
+        optical_flow = get_optical_flow(
+            frame=frame,
+            previous_frame=previous_frame,
+            mask=sky_mask,
+        )
+        optical_flow_magnitude = np.linalg.norm(optical_flow, axis=2)
+        optical_flow_magnitude_values = optical_flow_magnitude.flatten()[sky_mask.flatten() > 0]
+        if optical_flow_magnitude_values.size > 0:
+            mean_optical_flow_magnitude = np.mean(optical_flow_magnitude_values)
+            mean_optical_flow_magnitude = float(mean_optical_flow_magnitude)
+    else:
+        optical_flow = None
+        optical_flow_magnitude = None
+        optical_flow_magnitude_values = None
+        mean_optical_flow_magnitude = None
+
     return {
         "sky_mask": sky_mask,
         "sky_bounding_box": sky_bounding_box,
         "texture_descriptor": normalized_texture_descriptor.tolist(),
         "sky_class": int(sky_class),
         "sky_cover": float(sky_cover),
+        "mean_optical_flow_magnitude": mean_optical_flow_magnitude,
     }
 
 
@@ -255,13 +284,17 @@ def process_video(
     sky_mask = None
     sky_bounding_box = None
     video_dict = {}
+    previous_frame = None
     while True:
         ret, frame = video.read()
         if not ret:
             break
 
+        original_frame = frame.copy()
+
         frame_dict = process_frame(
             frame=frame,
+            previous_frame=previous_frame,
             mask=mask,
             bounds=bounds,
             sky_mask=sky_mask,
@@ -284,16 +317,20 @@ def process_video(
         texture_descriptor = frame_dict.get("texture_descriptor")
         sky_class = frame_dict.get("sky_class")
         sky_cover = frame_dict.get("sky_cover")
+        mean_optical_flow_magnitude = frame_dict.get("mean_optical_flow_magnitude")
         video_dict[frame_count] = {
             "texture_descriptor": texture_descriptor,
             "sky_class": sky_class,
             "sky_cover": sky_cover,
+            "mean_optical_flow_magnitude": mean_optical_flow_magnitude,
         }
 
         # Update to next frame
+        previous_frame = original_frame
         bar.update(1)
         frame_count += frame_step
         video.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
+
     video.release()
     bar.close()
 
@@ -340,7 +377,7 @@ def parse_args() -> argparse.Namespace:
         "--frame-rate",
         "-fr",
         type=float,
-        default=1 / 3,
+        default=1/3,
         help=f"Frame rate for processing the video (default: 1/3).",
     )
     parser.add_argument(
