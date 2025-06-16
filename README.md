@@ -1,6 +1,6 @@
-## 1. Texture Descriptor
+## 1. Sky Image Descriptor
 
-The texture descriptor leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We manually categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful texture representations from the diverse sky conditions present in the dataset.
+The sky image descriptor (SID) leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We manually categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful sky image representations from the diverse sky conditions present in the dataset.
 
 
 
@@ -37,11 +37,24 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 
 ### 1.2 Model Architecture
 
-The texture descriptor employs a ResNet50 backbone pretrained on ImageNet as the feature encoder, with the original classification head replaced by a projection head. The projection head consists of a two-layer multi-layer perceptron (MLP) with ReLU activation between layers, mapping the 2048-dimensional ResNet50 feature vector to a 16-dimensional texture descriptor space. The final texture descriptors are L2-normalized.
+#### 1.2.1 SID Backbone Network
 
+The SID model employs a ResNet50 backbone pretrained on ImageNet as the feature encoder, with the original classification head replaced by a projection head. The projection head consists of a two-layer multi-layer perceptron (MLP) with ReLU activation between layers, mapping the 2048-dimensional ResNet50 feature vector to a 16-dimensional SID space. The final descriptors are L2-normalized.
+
+#### 1.2.2 Classification Head for Downstream Validation
+
+To evaluate the quality of learned SID representations, we implement a simple classification head consisting of a 3-layer fully connected network. The architecture includes:
+
+- **Input Layer**: Accepts 16-dimensional SID embeddings
+- **Hidden Layers**: Two fully connected layers with ReLU activations.
+- **Output Layer**: 3-way linear layer producing probabilities for clear, partial, and overcast sky conditions.
+
+This lightweight classification head serves as a downstream task to validate that the learned SID representations capture semantically meaningful sky condition features.
 
 
 ### 1.3 Training Objective
+
+#### 1.3.1 Contrastive Learning Objective
 
 We employ the Normalized Temperature-scaled Cross Entropy (NT-Xent) loss, which is formulated as:
 
@@ -54,13 +67,23 @@ Where:
 - $N$ is the number of image pairs in the current batch.
 - $\mathbf{1}_{[k \neq i]}$ is an indicator function that equals 1 when $k \neq i$.
 
-This loss function encourages the model to learn representations where similar samples are pulled together in the texture descriptor space while dissimilar samples are pushed apart, resulting in a texture descriptor that effectively captures the distinctive characteristics of different sky conditions.
+This loss function encourages the model to learn representations where similar samples are pulled together in the descriptor space while dissimilar samples are pushed apart, resulting in a model that effectively captures the distinctive characteristics of different sky conditions.
+
+#### 1.3.2 Classification Head Training Objective
+
+The classification head is trained using standard cross-entropy loss:
+
+$$L_{cls} = -\sum_{i=1}^{C} y_i \log(\hat{y}_i)$$
+
+Where $C=3$ represents the number of sky condition classes, $y_i$ is the ground truth label, and $\hat{y}_i$ is the predicted probability for class $i$. The classification head is trained separately after the SID backbone has been trained and frozen.
 
 
 
 ### 1.4 Training Procedure
 
-Our texture descriptor model was trained with the following hyperparameters and configuration:
+#### 1.4.1 SID Backbone Training
+
+Our SID model was trained with the following hyperparameters and configuration:
 
 - **Optimizer**: AdamW with a learning rate of $10^{-4}$ and weight decay of $10^{-4}$.
 - **Embedding Dimension**: 16 (latent space dimension at the end of the MLP head).
@@ -70,25 +93,76 @@ Our texture descriptor model was trained with the following hyperparameters and 
 - **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
 - **Hardware**: Single NVIDIA RTX 3080 GPU with 10GB of memory.
 
-This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful texture representations while remaining trainable on consumer-grade hardware.
+#### 1.4.2 Classification Head Training
+
+The classification head training follows a standard supervised learning approach:
+
+- **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
+- **Batch Size**: 32 images.
+- **Training Duration**: 100 epochs with early stopping based on validation loss.
+- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 5 epochs and a factor of 0.5.
+
+These configurations provide a good balance between performance and computational efficiency, allowing the models to learn meaningful representations while remaining trainable on consumer-grade hardware.
 
 
 
 ### 1.5 Results
 
-The trained texture descriptor model is evaluated on the Sky Finder dataset, and the results are visualized using UMAP [4]. The resulting plot illustrates how the model effectively clusters similar sky conditions together in the texture descriptor space.
+#### 1.5.1 Sky Image Descriptor Space Visualization
+
+The trained SID model is evaluated on the Sky Finder dataset, and the results are visualized using UMAP [4]. The resulting plots demonstrate how the model effectively clusters similar sky conditions together in the descriptor space.
+
+Figure 2a shows the sky image descriptor space visualization grouped by semantic sky class labels (clear, partial, overcast), revealing natural clustering of similar sky conditions. Remarkably, when applying unsupervised K-means clustering to the same descriptor space (Figures 2b-c), the resulting clusters closely follow the boundaries of the semantic sky classes. This alignment between unsupervised clustering and human-interpretable labels demonstrates that the SID model has learned meaningful representations that capture real physical and visual patterns in sky conditions without requiring explicit supervision during the descriptor extraction phase.
+
 <div align="center">
-    <img src="generated/texture_descriptor_space.png" alt="Embeddings plot" align="center" width="80%">
-    <div align="center">
-    <em>Figure 2: Embeddings plot of the trained model on the Sky Finder dataset. The plot illustrates how the model effectively clusters similar sky conditions together in the texture descriptor space.</em>
-    </div>
+  <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_sky_class.png" alt="Sky Image Descriptor Space - Sky Class Grouping" width="90%">
+  <br>
+  <em><strong>Figure 2a:</strong> Sky image descriptor space visualization grouped by semantic sky class labels (clear, partial, overcast).</em>
 </div>
 
+<br>
+
+<div align="center">
+  <table>
+      <tr>
+          <td align="center">
+              <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_cluster_3.png" alt="Sky Image Descriptor Space - 3 Clusters" width="100%">
+              <br>
+              <em><strong>Figure 2b:</strong> K-means clustering with K=3</em>
+          </td>
+          <td align="center">
+              <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_cluster_4.png" alt="Sky Image Descriptor Space - 4 Clusters" width="100%">
+              <br>
+              <em><strong>Figure 2c:</strong> K-means clustering with K=4</em>
+          </td>
+      </tr>
+  </table>
+  <em><strong>Figure 2:</strong> UMAP visualization of the trained SID model on the Sky Finder dataset showing both semantic groupings and unsupervised clustering patterns in the sky image descriptor space.</em>
+</div>
+
+#### 1.5.2 Downstream Classification Performance
+
+To quantitatively validate the quality of the learned SID representations, we evaluate their performance on the downstream task of sky condition classification. The 16-dimensional SID embeddings are fed into the classification head described in Section 1.2.2, and the model is trained to predict the three sky condition classes.
+
+The classification results demonstrate good performance across all evaluation metrics. The SID representations achieve over 91% accuracy on the test set with minimal performance degradation between training and test splits, indicating strong generalization capabilities. The high F1 scores (> 0.90) across all splits confirm that the learned representations capture discriminative features that enable accurate sky condition classification, providing quantitative validation of the semantic clustering patterns observed in the UMAP visualizations.
+
+<div align="center">
+   <em><strong>Table 1:</strong> Classification performance of the SID-based sky condition classifier. Results demonstrate high accuracy and F1 scores across all data splits, validating the quality of learned representations.</em>
+</div>
+
+<div align="center">
+
+| Metric | Training | Validation | Test |
+|--------|----------|------------|------|
+| **Accuracy** | 0.9209 | 0.9069 | 0.9144 |
+| **F1 Score** | 0.9170 | 0.8977 | 0.9052 |
+
+</div>
 
 
 ### 1.6 Reproduction Procedure
 
-Follow these steps to reproduce our texture descriptor results by generating the dataset, training the model and plotting the texture descriptor space.
+Follow these steps to reproduce our SID results by generating the dataset, training the model and plotting the SID space.
 
 #### 1.6.1 Sky Finder Dataset Generation
 
@@ -98,21 +172,38 @@ To prepare the dataset for training, execute the following commands which will d
 cd src/datasets
 python generate_sky_finder_dataset.py [-w <max-workers>] [-f] [-r]
 ```
-Parameters:
-- `-w`, `--max-workers`: (Optional, default is 3) Specifies the maximum number of concurrent workers for downloading images. Higher values speed up the download process but require more system resources.
-- `-f`, `--force`: (Optional, default is false) Forces the download and generation of the dataset even if it already exists locally, ensuring you have the latest version.
-- `-r`, `--remove-data`: (Optional, default is false) Automatically removes the downloaded archive files and extracted files after successfully generating the processed dataset to save disk space.
 
-#### 1.6.2 Training the Texture Descriptor
+**Parameters:**
+- `-w`, `--max-workers`: (Optional, default: 3) Specifies the maximum number of concurrent workers for downloading images. Higher values speed up the download process but require more system resources.
+- `-f`, `--force`: (Optional, default: false) Forces re-download, re-extraction, re-classification, and re-splitting of data even if it already exists locally, ensuring you have the latest version.
+- `-r`, `--remove-data`: (Optional, default: false) Automatically removes temporary archives and extracted data after processing (keeps final split data) to save disk space.
 
-To train the texture descriptor model, execute the following commands:
+#### 1.6.2 Training the SID Model
+
+To train the SID model, execute the following commands:
 
 ```bash
 cd src/contrastive_net
-python contrastive_net_train.py
+python contrastive_net_train.py [-e <epochs>] [-b <batch-size>] [-w <workers>] [-evaluation-steps <evaluation-steps>] [--learning-rate <learning-rate>] [--weight-decay <weight-decay>] [--project-name <project-name>] [--experiment-name <experiment-name>] [--accelerator <accelerator>] [--devices <devices>] [--precision <precision>] [--save-top-k <save-top-k>] [--no-pretrained] [--no-normalize]
 ```
 
-Model weights will be saved in the [data/models/contrastive_net](data/models/contrastive_net) directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to [data/models/contrastive_net/baseline.ckpt](data/models/contrastive_net/baseline.ckpt).
+**Parameters:**
+- `-e`, `--epochs`: (Optional, default: 4) Number of training epochs.
+- `-b`, `--batch-size`: (Optional, default: 2) Batch size for training.
+- `-w`, `--n-workers`: (Optional, default: 8) Number of data loading workers.
+- `--evaluation-steps`: (Optional, default: 500) Number of steps between validation runs.
+- `--learning-rate`: (Optional, default: 1e-4) Learning rate for optimization.
+- `--weight-decay`: (Optional, default: 1e-4) Weight decay for regularization.
+- `--project-name`: (Optional, default: "lipid") W&B project name.
+- `--experiment-name`: (Optional, default: auto-generated timestamp) Custom experiment name.
+- `--accelerator`: (Optional, default: "gpu") Hardware accelerator to use (cpu/gpu/tpu).
+- `--devices`: (Optional, default: -1) Number of devices to use (-1 for all available).
+- `--precision`: (Optional, default: 32) Training precision (16/32).
+- `--save-top-k`: (Optional, default: 3) Number of best checkpoints to save.
+- `--no-pretrained`: (Optional, default: false) Use randomly initialized backbone instead of pretrained.
+- `--no-normalize`: (Optional, default: false) Disable embedding normalization.
+
+Model weights will be saved in the `data/models/contrastive_net` directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to `data/models/contrastive_net/baseline.ckpt`.
 
 #### 1.6.3 Generating Sky Finder Descriptors
 
@@ -120,19 +211,65 @@ To generate the descriptors for the Sky Finder dataset, execute the following co
 
 ```bash
 cd src/pipeline
-python generate_sky_finder_descriptors.py
+python generate_sky_finder_descriptors.py [-w <workers>] [-f]
 ```
 
-The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
+**Parameters:**
+- `-w`, `--n-workers`: (Optional, default: 1) Number of workers for data loading.
+- `-f`, `--force`: (Optional, default: false) Force overwrite existing descriptor file.
 
-#### 1.6.4 Plotting the Texture Descriptor Space
+The generated descriptors will be saved in the `generated/sky_finder_descriptors.json` file.
 
-To plot the texture descriptors and visualize the results, execute the following commands:
+#### 1.6.4 Plotting the SID Space
+
+To plot the SID space and visualize the results, execute the following commands:
 
 ```bash
 cd src/pipeline
-python plot_texture_descriptor_space.py
+python plot_sky_image_descriptor_space.py [-g <group-by-type>] [-k <n-clusters>] [-i <interactive>]
 ```
+Parameters:
+- `-g`, `--group-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default) and `cluster`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters, respectively.
+- `-k`, `--n-clusters`: (Optional, default is 3) Specifies the number of clusters to use when grouping by cluster type. This parameter is only relevant when `--group-by` is set to `cluster`.
+- `-i`, `--interactive`: (Optional, default is false) Enables interactive mode for the plot, allowing you to hover over points to see images.
+
+#### 1.6.5 Training the Classification Head
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -246,16 +383,7 @@ The comprehensive evaluation reveals several important insights about the active
 
 3. **Coverage Error Reduction**: The active learning approach significantly reduces coverage estimation errors, particularly evident in the combined validation scenario where coverage error decreases from 0.0927 to 0.0824.
 
-4. **Segmentation Quality**: The Dice score improvements (4.8% to 11.8%) indicate that the active learning approach produces more accurate cloud boundary delineation, which is crucial for precise cloud coverage quantification.
-
-**TODO**
-
-<div align="center">
-    <img src="generated/cover_results_TODO.png" alt="Embeddings plot" align="center" width="80%">
-    <div align="center">
-    <em>Figure 3: Visual comparison of cloud segmentation results. From left to right: original input images, ground truth segmentation masks, predictions from the baseline model trained on manual annotations only, and predictions from our active learning enhanced model.</em>
-    </div>
-</div>
+4. **Segmentation Quality**: The Dice score improvements indicate that the active learning approach produces more accurate cloud boundary delineation, which is crucial for precise cloud coverage quantification.
 
 
 
@@ -407,10 +535,8 @@ This will produce detailed performance metrics, confusion matrices, and visualiz
 
 After these findings, we decide to only use the contrastive model and we will add other descriptors on our own initial video data. videos enable us to have temporal-based and motion-based descriptors that could improve describability of the skies.
 
-1. texture descriptor
-2. mean green value
-3. Optical flow
-4. mean diff green over consecutive frames
+1. cloud coverage percentage
+2. Optical flow
 
 # Reproducibility TODO
 

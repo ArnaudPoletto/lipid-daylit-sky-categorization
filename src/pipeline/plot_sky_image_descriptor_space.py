@@ -1,0 +1,227 @@
+import os
+import sys
+import argparse
+from typing import List, Dict, Tuple, Any
+import numpy as np
+from umap import UMAP
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from src.pipeline.sky_image_descriptor import (
+    get_sky_finder_sky_image_descriptors,
+    get_fitted_umap_reducer,
+    get_kmeans_groups,
+    plot_sky_finder_sky_image_descriptors,
+)
+
+
+def load_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[str]]:
+    """
+    Load the sky finder sky image descriptors and metadata.
+
+    Returns:
+        Tuple[np.ndarray, List[str], List[str]]: (sky_image_descriptors, sky_types, image_paths)
+    """
+    try:
+        sky_finder_sky_image_descriptors, sky_types, image_paths = get_sky_finder_sky_image_descriptors()
+        print(f"✅ Successfully loaded {len(sky_finder_sky_image_descriptors)} sky image descriptors.")
+        return sky_finder_sky_image_descriptors, sky_types, image_paths
+    except Exception as e:
+        print(f"❌ Failed to load sky image descriptors: {e}")
+        raise
+
+
+def create_umap_reducer(sky_image_descriptors: np.ndarray) -> UMAP:
+    """
+    Create and fit a UMAP reducer for dimensionality reduction.
+
+    Args:
+        sky_image_descriptors (np.ndarray): The sky image descriptors to fit the UMAP on.
+
+    Returns:
+        UMAP: The fitted UMAP reducer.
+    """
+    try:
+        fitted_umap_reducer = get_fitted_umap_reducer(
+            sky_finder_sky_image_descriptors=sky_image_descriptors
+        )
+        print("✅ Successfully created and fitted UMAP reducer.")
+        return fitted_umap_reducer
+    except Exception as e:
+        print(f"❌ Failed to create UMAP reducer: {e}")
+        raise
+
+
+def generate_sky_type_colors(sky_types: List[str]) -> Tuple[List[str], Dict[str, str]]:
+    """
+    Generate colors and labels for sky type grouping.
+
+    Args:
+        sky_types (List[str]): List of sky type labels.
+
+    Returns:
+        Tuple[List[str], Dict[str, str]]: (colors, color_labels)
+    """
+    try:
+        colors = [
+            "blue" if sky_type == "clear" else
+            "red" if sky_type == "overcast" else "orange"
+            for sky_type in sky_types
+        ]
+        color_labels = {
+            "blue": "clear",
+            "orange": "partial",
+            "red": "overcast"
+        }
+        print(f"✅ Successfully generated sky type colors for {len(set(sky_types))} unique sky types.")
+        return colors, color_labels
+    except Exception as e:
+        print(f"❌ Failed to generate sky type colors: {e}")
+        raise
+
+
+def generate_cluster_colors(sky_image_descriptors: np.ndarray, k: int) -> Tuple[List[str], Dict[str, str]]:
+    """
+    Generate colors and labels for cluster grouping using K-means.
+
+    Args:
+        sky_image_descriptors (np.ndarray): The sky image descriptors to cluster.
+        k (int): Number of clusters for K-means.
+
+    Returns:
+        Tuple[List[str], Dict[str, str]]: (colors, color_labels)
+    """
+    try:
+        cluster_labels = get_kmeans_groups(sky_image_descriptors=sky_image_descriptors, k=k)
+        colors = [
+            f"C{label}" if label >= 0 else "black" for label in cluster_labels
+        ]
+        color_labels = {f"C{label}": f"Cluster {label}" for label in set(cluster_labels) if label >= 0}
+        unique_clusters = len(set(cluster_labels))
+        print(f"✅ Successfully generated cluster colors for {unique_clusters} clusters using K={k}.")
+        return colors, color_labels
+    except Exception as e:
+        print(f"❌ Failed to generate cluster colors: {e}")
+        raise
+
+
+def create_visualization(
+    fitted_umap: UMAP,
+    sky_image_descriptors: np.ndarray,
+    colors: List[str],
+    color_labels: Dict[str, str],
+    image_paths: List[str],
+    interactive: bool,
+) -> None:
+    """
+    Create and display the sky image descriptor visualization.
+
+    Args:
+        fitted_umap (UMAP): The fitted UMAP reducer.
+        sky_image_descriptors (np.ndarray): The sky image descriptors.
+        colors (List[str]): Colors for each data point.
+        color_labels (Dict[str, str]): Mapping of colors to labels.
+        image_paths (List[str]): Paths to the images.
+        interactive (bool): Whether to run in interactive mode.
+    """
+    try:
+        print("▶️  Creating sky image descriptor visualization...")
+        plot_sky_finder_sky_image_descriptors(
+            fitted_umap=fitted_umap,
+            sky_finder_sky_image_descriptors=sky_image_descriptors,
+            colors=colors,
+            color_labels=color_labels,
+            image_paths=image_paths if interactive else None,
+        )
+        print("✅ Successfully created sky image descriptor visualization.")
+    except Exception as e:
+        print(f"❌ Failed to create visualization: {e}")
+        raise
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments.
+    """
+    parser = argparse.ArgumentParser(
+        description="Plot sky image descriptor space for sky finder dataset using UMAP dimensionality reduction."
+    )
+    
+    parser.add_argument(
+        "-g",
+        "--group-by",
+        type=str,
+        choices=["sky_type", "cluster"],
+        default="sky_type",
+        help="Grouping method for visualization: 'sky_type' for semantic labels or 'cluster' for K-means clustering (default: sky_type)",
+    )
+    
+    parser.add_argument(
+        "-k",
+        "--k-clusters",
+        type=int,
+        default=3,
+        help="Number of clusters for K-means when using cluster grouping (default: 3)",
+    )
+    
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Enable interactive mode with image tooltips on hover",
+    )
+
+    return parser.parse_args()
+
+
+def main() -> None:
+    """
+    Main function to plot sky image descriptor space.
+    """
+    args = parse_args()
+
+    print("▶️  Starting sky image descriptor space visualization...")
+    print(f"📋 Configuration:")
+    print(f"   • Grouping method: {args.group_by}")
+    print(f"   • K-means clusters: {args.k_clusters}")
+    print(f"   • Interactive mode: {args.interactive}")
+
+    try:
+        # Load sky image descriptors
+        print("▶️  Loading sky image descriptors...")
+        sky_image_descriptors, sky_types, image_paths = load_sky_image_descriptors()
+
+        # Create UMAP reducer
+        print("▶️  Creating UMAP dimensionality reduction...")
+        fitted_umap_reducer = create_umap_reducer(sky_image_descriptors)
+
+        # Generate colors based on grouping method
+        if args.group_by == "sky_type":
+            print("▶️  Generating colors for sky type grouping...")
+            colors, color_labels = generate_sky_type_colors(sky_types)
+        elif args.group_by == "cluster":
+            print(f"▶️  Generating colors for cluster grouping (K={args.k_clusters})...")
+            colors, color_labels = generate_cluster_colors(sky_image_descriptors, args.k_clusters)
+
+        # Create visualization
+        create_visualization(
+            fitted_umap=fitted_umap_reducer,
+            sky_image_descriptors=sky_image_descriptors,
+            colors=colors,
+            color_labels=color_labels,
+            image_paths=image_paths,
+            interactive=args.interactive,
+        )
+
+        print("🎉 Sky image descriptor visualization completed successfully!")
+
+    except Exception as e:
+        print(f"💥 Fatal error during visualization: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
