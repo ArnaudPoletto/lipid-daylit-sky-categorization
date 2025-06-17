@@ -325,41 +325,42 @@ To project new sky videos into the SID space, follow these steps:
 
 3. **Run the projection script**: Execute the following command to process the new videos and project them into the SID space:
 
-```bash
-cd src/pipeline
-python run_pipeline [-vp <video-path>] [-mp <mask-path>] [-fr <frame-rate>] [-w <workers>] [-sam2 <sam2-type>] [-gdino <gdino-type>] [-bt <box-threshold>] [-tt <text-threshold>] [-sp] [-f]
-```
+    ```bash
+    cd src/pipeline
+    python run_pipeline [-vp <video-path>] [-mp <mask-path>] [-fr <frame-rate>] [-w <workers>] [-sam2 <sam2-type>] [-gdino <gdino-type>] [-bt <box-threshold>] [-tt <text-threshold>] [-sp] [-f]
+    ```
 
-**Parameters:**
-- `-vp`, `--video-path`: Path to the video file.
-- `-mp`, `--mask-path`: (Optional) Path to the manually annotated mask file. If provided, the script will use this mask to focus on specific regions of interest.
-- `-fr`, `--frame-rate`: (Optional, default: 1/3) Frame rate for processing the video. Higher values will extract more frames but require more processing time.
-- `-sam2`, `--sam2-type`: (Optional, default: "large") Type of SAM2 model to use for segmentation. Options include "large", "medium", and "base" or "small".
-- `-gdino`, `--gdino-type`: (Optional, default: "tiny") Type of G-DINO model to use for segmentation. Options include "tiny" or "base".
-- `-bt`, `--box-threshold`: (Optional, default: 0.35) Box threshold for SAM2 segmentation.
-- `-tt`, `--text-threshold`: (Optional, default: 0.35) Text threshold for SAM2 segmentation.
-- `-sp`, `--show-plots`: (Optional, default: false) If set, displays the generated plots for the projected SID space.
-- `-f`, `--force`: (Optional, default: false) Forces reprocessing of the video even if the descriptors already exist.
+    **Parameters:**
+    - `-vp`, `--video-path`: Path to the video file.
+    - `-mp`, `--mask-path`: (Optional) Path to the manually annotated mask file. If provided, the script will use this mask to focus on specific regions of interest.
+    - `-fr`, `--frame-rate`: (Optional, default: 1/3) Frame rate for processing the video. Higher values will extract more frames but require more processing time.
+    - `-sam2`, `--sam2-type`: (Optional, default: "large") Type of SAM2 model to use for segmentation. Options include "large", "medium", and "base" or "small".
+    - `-gdino`, `--gdino-type`: (Optional, default: "tiny") Type of G-DINO model to use for segmentation. Options include "tiny" or "base".
+    - `-bt`, `--box-threshold`: (Optional, default: 0.35) Box threshold for SAM2 segmentation.
+    - `-tt`, `--text-threshold`: (Optional, default: 0.35) Text threshold for SAM2 segmentation.
+    - `-sp`, `--show-plots`: (Optional, default: false) If set, displays the generated plots for the projected SID space.
+    - `-f`, `--force`: (Optional, default: false) Forces reprocessing of the video even if the descriptors already exist.
 
 4. **Plot the SID space**: After processing the new videos, you can visualize the projected descriptors in the SID space by executing:
 
-```bash
-cd src/pipeline
-python plot_pipeline.py 
-```
+    ```bash
+    cd src/pipeline
+    python plot_pipeline.py [-vp <video-path>] [-pt]
+    ```
 
-**Parameters:**
+    **Parameters:**
+    - `-vp`, `--video-path`: Path to the video file.
+    - `-pt`, `--plot-time`: (Optional, default: false) If set, plots the descriptors over time, showing how the SID space evolves throughout the video.
 
+    Or simply run the following command to plot all the generated descriptors in the SID space:
 
-Or simply run the following command to plot all the generated descriptors in the SID space:
+    ```bash
+    cd src/pipeline
+    python plot_pipeline_all.py [-p <pipeline-path>]
+    ```
 
-```bash
-cd src/pipeline
-python plot_pipeline_all.py [-p <pipeline-path>]
-```
-
-**Parameters:**
-- `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
+    **Parameters:**
+    - `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
 
 
 
