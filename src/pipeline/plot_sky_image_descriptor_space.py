@@ -1,31 +1,36 @@
 import os
 import sys
+import torch
 import argparse
-from typing import List, Dict, Tuple, Any
 import numpy as np
 from umap import UMAP
+import matplotlib.pyplot as plt
+from typing import List, Dict, Tuple, Any
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.pipeline.sky_image_descriptor import (
-    get_sky_finder_sky_image_descriptors,
+    get_sky_finder_descriptors,
     get_fitted_umap_reducer,
     get_kmeans_groups,
     plot_sky_finder_sky_image_descriptors,
 )
 
 
-def load_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[str]]:
+def load_descriptors() -> Tuple[np.ndarray, List[float], List[str], List[str]]:
     """
     Load the sky finder sky image descriptors and metadata.
 
     Returns:
-        Tuple[np.ndarray, List[str], List[str]]: (sky_image_descriptors, sky_types, image_paths)
+        np.ndarray: The sky image descriptors for the Sky Finder test set.
+        List[float]: The cloud coverages for the Sky Finder test set.
+        List[str]: The sky classes for the Sky Finder test set.
+        List[str]: The image paths for the Sky Finder test set.
     """
     try:
-        sky_finder_sky_image_descriptors, sky_types, image_paths = get_sky_finder_sky_image_descriptors()
+        sky_finder_sky_image_descriptors, cloud_coverages, sky_types, image_paths = get_sky_finder_descriptors()
         print(f"✅ Successfully loaded {len(sky_finder_sky_image_descriptors)} sky image descriptors.")
-        return sky_finder_sky_image_descriptors, sky_types, image_paths
+        return sky_finder_sky_image_descriptors, cloud_coverages, sky_types, image_paths
     except Exception as e:
         print(f"❌ Failed to load sky image descriptors: {e}")
         raise
@@ -105,6 +110,45 @@ def generate_cluster_colors(sky_image_descriptors: np.ndarray, k: int) -> Tuple[
         raise
 
 
+def generate_cloud_cover_colors(cloud_coverages: List[float]) -> Tuple[List[str], Dict[str, str]]:
+    """
+    Generate colors and labels for cloud cover grouping.
+
+    Args:
+        cloud_coverages (List[float]): List of cloud coverages.
+
+    Returns:
+        Tuple[List[str], Dict[str, str]]: (colors, color_labels)
+    """
+    try:
+        cmap = plt.cm.get_cmap("viridis")
+        colors = [cmap(torch.sigmoid(torch.tensor(cc)).item()) for cc in cloud_coverages]
+        hex_colors = [
+            "#{:02x}{:02x}{:02x}".format(
+                int(color[0] * 255), 
+                int(color[1] * 255), 
+                int(color[2] * 255)
+            ) 
+            for color in colors
+        ]
+
+        color_labels = {}
+        for cc_val in [0.0, 1.0]:
+            color = cmap(cc_val)
+            hex_color = "#{:02x}{:02x}{:02x}".format(
+                int(color[0] * 255), 
+                int(color[1] * 255), 
+                int(color[2] * 255)
+            )
+            color_labels[hex_color] = f"CC: {cc_val:.1f}"
+
+            print(f"✅ Successfully generated cloud cover colors for {len(cloud_coverages)} values.")
+        return hex_colors, color_labels
+    except Exception as e:
+        print(f"❌ Failed to generate cloud cover colors: {e}")
+        raise
+
+
 def create_visualization(
     fitted_umap: UMAP,
     sky_image_descriptors: np.ndarray,
@@ -154,9 +198,9 @@ def parse_args() -> argparse.Namespace:
         "-g",
         "--group-by",
         type=str,
-        choices=["sky_type", "cluster"],
+        choices=["sky_type", "cluster", "cloud_cover"],
         default="sky_type",
-        help="Grouping method for visualization: 'sky_type' for semantic labels or 'cluster' for K-means clustering (default: sky_type)",
+        help="Grouping method for visualization: 'sky_type' for semantic labels, 'cluster' for K-means clustering or 'cloud_cover' for cloud cover percentage (default: sky_type).",
     )
     
     parser.add_argument(
@@ -192,7 +236,7 @@ def main() -> None:
     try:
         # Load sky image descriptors
         print("▶️  Loading sky image descriptors...")
-        sky_image_descriptors, sky_types, image_paths = load_sky_image_descriptors()
+        sky_image_descriptors, cloud_coverages, sky_types, image_paths = load_descriptors()
 
         # Create UMAP reducer
         print("▶️  Creating UMAP dimensionality reduction...")
@@ -205,6 +249,9 @@ def main() -> None:
         elif args.group_by == "cluster":
             print(f"▶️  Generating colors for cluster grouping (K={args.k_clusters})...")
             colors, color_labels = generate_cluster_colors(sky_image_descriptors, args.k_clusters)
+        elif args.group_by == "cloud_cover":
+            print("▶️  Generating colors for cloud cover grouping...")
+            colors, color_labels = generate_cloud_cover_colors(cloud_coverages)
 
         # Create visualization
         create_visualization(

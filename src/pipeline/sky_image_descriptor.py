@@ -96,7 +96,6 @@ def get_sky_image_descriptor(
             ),
         ]
     )
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = transform(image=frame)["image"]
     frame = frame.unsqueeze(0).to(DEVICE)
 
@@ -130,7 +129,7 @@ def get_kmeans_groups(
 
 
 
-def get_sky_finder_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[str]]:
+def get_sky_finder_descriptors() -> Tuple[np.ndarray, List[str], List[str]]:
     """
     Load Sky Finder sky image descriptors from the generated descriptors file.
 
@@ -138,7 +137,10 @@ def get_sky_finder_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[
         FileNotFoundError: If the Sky Finder descriptors file does not exist.
 
     Returns:
-        Tuple[np.ndarray, List[str], List[str]]: (sky_image_descriptors, sky_classes, image_paths)
+        np.ndarray: The sky image descriptors for the Sky Finder test set.
+        List[float]: The cloud coverages for the Sky Finder test set.
+        List[str]: The sky classes for the Sky Finder test set.
+        List[str]: The image paths for the Sky Finder test set.
     """
     if not os.path.exists(SKY_FINDER_DESCRIPTORS_PATH):
         raise FileNotFoundError(
@@ -152,6 +154,7 @@ def get_sky_finder_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[
 
     # Get the sky image descriptors for the test set
     test_sky_finder_sky_image_descriptors_dict = {}
+    cloud_coverages = []
     sky_classes = []
     image_paths = []
     for sky_class, camera_dict in test_sky_finder_descriptors.items():
@@ -159,7 +162,8 @@ def get_sky_finder_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[
             for sample_id, descriptors in sample_dict.items():
                 test_sky_finder_sky_image_descriptors_dict[
                     f"{sky_class}_{camera_id}_{sample_id}"
-                ] = np.array(descriptors["image_descriptor"])
+                ] = np.array(descriptors["sky_image_descriptor"])
+                cloud_coverages.append(descriptors["cloud_coverage"])
                 sky_classes.append(sky_class)
                 image_path = f"{SKY_FINDER_PATH}test/{sky_class}/{camera_id}/{sample_id}"
                 image_paths.append(image_path)
@@ -172,7 +176,7 @@ def get_sky_finder_sky_image_descriptors() -> Tuple[np.ndarray, List[str], List[
     for i, (key, value) in enumerate(test_sky_finder_sky_image_descriptors_dict.items()):
         sky_finder_sky_image_descriptors[i] = value
 
-    return sky_finder_sky_image_descriptors, sky_classes, image_paths
+    return sky_finder_sky_image_descriptors, cloud_coverages, sky_classes, image_paths
 
 def get_fitted_umap_reducer(
     sky_finder_sky_image_descriptors: np.ndarray,
@@ -268,7 +272,7 @@ def plot_sky_finder_sky_image_descriptors(
         fig, ax_main = plt.subplots(figsize=(15, 15))
 
     # Plot main scatter
-    scatter = ax_main.scatter(
+    ax_main.scatter(
         projected_descriptors[:, 0],
         projected_descriptors[:, 1],
         s=10,

@@ -37,40 +37,26 @@ class SkyFinderEmbeddingsDataset(Dataset):
         for sky_class, camera_dict in data.items():
             for camera_id, samples in camera_dict.items():
                 for sample_name, descriptors in samples.items():
-                    if self.embeddings_type == 'all':
-                        processed_data.append((descriptors, sky_class))
-                    elif self.embeddings_type == 'contrastive':
-                        processed_data.append(({
-                            "contrastive_embeddings": descriptors["contrastive_embeddings"]
-                        }, sky_class))
-                    elif self.embeddings_type == 'cover':
-                        processed_data.append(({
-                            "cover_prediction": descriptors["cover_prediction"]
-                        }, sky_class))
+                    processed_data.append((descriptors["sky_image_descriptor"], sky_class))
 
         return processed_data
 
 
     def __init__(
         self,
-        embeddings_type: str,
         dataset_split: str,
     ) -> None:
         """
         Initialize the Sky Finder embeddings dataset.
 
         Args:
-            embeddings_type (str): The type of embeddings to use (e.g., 'all', 'contrastive', 'cover').
             dataset_split (str): The split of the dataset to use (e.g., 'train', 'val', 'test').
         """
         super(SkyFinderEmbeddingsDataset, self).__init__()
 
-        if embeddings_type not in ['all', 'contrastive', 'cover']:
-            raise ValueError(f"❌ Invalid embeddings type: {embeddings_type}. Must be one of 'all', 'contrastive', or 'cover'.")
         if dataset_split not in ['train', 'val', 'test']:
             raise ValueError(f"❌ Invalid dataset split: {dataset_split}. Must be one of 'train', 'val', or 'test'.")
         
-        self.embeddings_type = embeddings_type
         self.dataset_split = dataset_split
         self.data = self._load_data()
 
@@ -94,15 +80,10 @@ class SkyFinderEmbeddingsDataset(Dataset):
             torch.Tensor: The processed image patch pair.
         """
         sample = self.data[idx]
-        descriptors, sky_class = sample
+        sky_image_descriptor, sky_class = sample
 
-        if self.embeddings_type == 'all':
-            input_data = np.array(descriptors["contrastive_embeddings"] + [descriptors["cover_prediction"]], dtype=np.float32)
-        elif self.embeddings_type == 'contrastive':
-            input_data = np.array(descriptors["contrastive_embeddings"], dtype=np.float32)
-        elif self.embeddings_type == 'cover':
-            input_data = np.array([descriptors["cover_prediction"]], dtype=np.float32)
-        input_data = torch.tensor(input_data, dtype=torch.float32)
+        sky_image_descriptor = np.array(sky_image_descriptor, dtype=np.float32)
+        sky_image_descriptor = torch.tensor(sky_image_descriptor, dtype=torch.float32)
         
         label = np.array(
             [
@@ -113,7 +94,7 @@ class SkyFinderEmbeddingsDataset(Dataset):
         )
         label = torch.tensor(label, dtype=torch.float32)
 
-        return input_data, label
+        return sky_image_descriptor, label
     
 
 class SkyFinderEmbeddingsModule(pl.LightningDataModule):
@@ -123,7 +104,6 @@ class SkyFinderEmbeddingsModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        embeddings_type: str,
         batch_size: int,
         n_workers: int,
         seed: Optional[int] = None,
@@ -132,17 +112,12 @@ class SkyFinderEmbeddingsModule(pl.LightningDataModule):
         Initialize the Sky Finder embeddings data module.
 
         Args:
-            embeddings_type (str): The type of embeddings to use (e.g., 'all', 'contrastive', 'cover').
             batch_size (int): The batch size for the dataloaders.
             n_workers (int): The number of workers for the dataloaders.
             seed (Optional[int]): The seed for random number generation.
         """
         super(SkyFinderEmbeddingsModule, self).__init__()
 
-        if embeddings_type not in ['all', 'contrastive', 'cover']:
-            raise ValueError(f"❌ Invalid embeddings type: {embeddings_type}. Must be one of 'all', 'contrastive', or 'cover'.")
-
-        self.embeddings_type = embeddings_type
         self.batch_size = batch_size
         self.n_workers = n_workers
         self.seed = seed
@@ -165,16 +140,13 @@ class SkyFinderEmbeddingsModule(pl.LightningDataModule):
         # Create datasets
         if stage == "fit" or stage is None:
             self.train_dataset = SkyFinderEmbeddingsDataset(
-                embeddings_type=self.embeddings_type,
                 dataset_split="train",
             )
             self.val_dataset = SkyFinderEmbeddingsDataset(
-                embeddings_type=self.embeddings_type,
                 dataset_split="val",
             )
         if stage == "test" or stage is None:
             self.test_dataset = SkyFinderEmbeddingsDataset(
-                embeddings_type=self.embeddings_type,
                 dataset_split="test",
             )
 

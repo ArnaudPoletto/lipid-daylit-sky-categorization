@@ -1,12 +1,10 @@
 import os
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import sys
 import time
 import torch
 import argparse
 import lightning.pytorch as pl
+from typing import List, Dict, Any
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -19,6 +17,7 @@ from src.datasets.contrastive_pairs_dataset import ContrastivePairsModule
 from src.config import (
     PROJECTION_DIM,
     MODELS_PATH,
+    DEVICE,
     SEED,
 )
 
@@ -48,7 +47,7 @@ def create_model(
             projection_dim=projection_dim, 
             pretrained=pretrained,
             normalize_embeddings=normalize_embeddings,
-        )
+        ).to(DEVICE)
         lightning_model = ContrastiveLightningModel(
             model=model,
             learning_rate=learning_rate,
@@ -66,7 +65,7 @@ def create_model(
 def setup_wandb_logger(
     project_name: str,
     experiment_name: str,
-    config: dict,
+    config: Dict[str, Any],
 ) -> WandbLogger:
     """
     Setup Weights & Biases logger.
@@ -96,7 +95,7 @@ def setup_callbacks(
     checkpoint_dir: str,
     save_top_k: int,
     monitor_metric: str,
-) -> list:
+) -> List[ModelCheckpoint]:
     """
     Setup training callbacks.
 
@@ -371,6 +370,7 @@ def main() -> None:
     print(f"   • W&B project: {args.project_name}")
     print(f"   • Experiment name: {experiment_name}")
     print(f"   • Models path: {os.path.abspath(MODELS_PATH)}")
+    print
     print(f"   • Random seed: {SEED}")
 
     try:

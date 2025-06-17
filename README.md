@@ -4,7 +4,7 @@ The sky image descriptor (SID) leverages the Sky Finder dataset [1], which conta
 
 
 
-### 1.1 Dataset
+### 1.1 Datasets
 
 #### 1.1.1 Sky Finder Dataset
 
@@ -17,6 +17,16 @@ The Sky Finder dataset comprises high-resolution outdoor images captured across 
 2. **Image Preprocessing**: Images are cropped based on manually labeled ground segmentation to remove non-sky regions, and then in-painted using TELEA algorithm [3] with a radius of 3 pixels to seamlessly fill any artifacts along the segmentation boundary.
 
 For experimental evaluation, the dataset is divided into training, validation, and test sets containing 12,894 (60%), 4,298 (20%), and 4,298 (20%) images, respectively.
+
+#### 1.1.2 Sky Finder Cover Dataset
+
+The Sky Finder Cover Dataset is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
+
+The dataset was created through a meticulous annotation process:
+1. **Selection**: Representative images were selected from each sky condition category to ensure diversity.
+2. **Manual Segmentation**: Annotators created pixel-precise binary masks, where each pixel is labeled as either overcast (white), partially covered (gray) or clear sky/ground (0).
+
+For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively.
 
 #### 1.1.2 Pair Generation for Contrastive Learning
 
@@ -114,6 +124,10 @@ The trained SID model is evaluated on the Sky Finder dataset, and the results ar
 
 Figure 2a shows the sky image descriptor space visualization grouped by semantic sky class labels (clear, partial, overcast), revealing natural clustering of similar sky conditions. Remarkably, when applying unsupervised K-means clustering to the same descriptor space (Figures 2b-c), the resulting clusters closely follow the boundaries of the semantic sky classes. This alignment between unsupervised clustering and human-interpretable labels demonstrates that the SID model has learned meaningful representations that capture real physical and visual patterns in sky conditions without requiring explicit supervision during the descriptor extraction phase.
 
+The K-means clustering reveals distinct patterns that correspond to recognizable sky characteristics. The rightmost cluster (blue in K=3, orange in K=4) centers on clear sky conditions, capturing images with predominantly blue skies and minimal cloud coverage. The bottom-center cluster (green in K=3, blue in K=4) focuses mostly on partially cloudy conditions and highly textured overcast skies, encompassing a diverse range of sky patterns from delicate veil clouds and scattered cumulus formations to heavily cloudy skies with significant texture variation.
+
+In the K=3 clustering (Figure 2b), the remaining cluster primarily contains overcast skies. However, the K=4 clustering (Figure 2c) reveals a more nuanced structure by splitting overcast conditions into two distinct subclusters. The green cluster (leftmost region) centers around heavily and uniformly overcast skies with minimal texture variation, representing completely cloud-covered conditions or fog. In contrast, the red cluster (topmost region) captures overcast skies with more visual texture and contrast, likely including scenes where sky partially penetrates through cloud layers or where cloud formations exhibit greater structural variation. This finer granularity suggests that the SID representations encode subtle but meaningful differences in cloud density, texture, and spatial patterns that align with human visual perception of sky conditions.
+
 <div align="center">
   <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_sky_class.png" alt="Sky Image Descriptor Space - Sky Class Grouping" width="90%">
   <br>
@@ -144,7 +158,7 @@ Figure 2a shows the sky image descriptor space visualization grouped by semantic
 
 To quantitatively validate the quality of the learned SID representations, we evaluate their performance on the downstream task of sky condition classification. The 16-dimensional SID embeddings are fed into the classification head described in Section 1.2.2, and the model is trained to predict the three sky condition classes.
 
-The classification results demonstrate good performance across all evaluation metrics. The SID representations achieve over 91% accuracy on the test set with minimal performance degradation between training and test splits, indicating strong generalization capabilities. The high F1 scores (> 0.90) across all splits confirm that the learned representations capture discriminative features that enable accurate sky condition classification, providing quantitative validation of the semantic clustering patterns observed in the UMAP visualizations.
+The classification results demonstrate good performance across all evaluation metrics. The SID representations achieve over 86% accuracy on the test set with minimal performance degradation between training and test splits, indicating strong generalization capabilities. The high F1 scores across all splits confirm that the learned representations capture discriminative features that enable accurate sky condition classification, providing quantitative validation of the semantic clustering patterns observed in the UMAP visualizations.
 
 <div align="center">
    <em><strong>Table 1:</strong> Classification performance of the SID-based sky condition classifier. Results demonstrate high accuracy and F1 scores across all data splits, validating the quality of learned representations.</em>
@@ -154,17 +168,50 @@ The classification results demonstrate good performance across all evaluation me
 
 | Metric | Training | Validation | Test |
 |--------|----------|------------|------|
-| **Accuracy** | 0.9209 | 0.9069 | 0.9144 |
-| **F1 Score** | 0.9170 | 0.8977 | 0.9052 |
+| **Accuracy** | 0.8609 | 0.8616 | 0.8637 |
+| **F1 Score** | 0.8584 | 0.8561 | 0.8590 |
 
 </div>
 
+### 1.6 Plotting New Data in the SID Space
 
-### 1.6 Reproduction Procedure
+The SID space was built on the sky finder dataset, but new sky images can be projected into the SID space using the trained SID model. This allows for the visualization of new sky images in the same descriptor space, enabling comparison between new images or between sky finder manually labelled images.
+
+#### 1.6.1 Window View Dataset
+
+Adapting our own dataset of window views introduced in [5], we can pass the images through the SID model to obtain their sky image descriptors. The window view dataset contains 45 high-resolution images captured from fifteen different locations across the EPFL campus in Switzerland between March and May 2023, encompassing a wide range of atmospheric conditions including clear, partial, and overcast skies.
+
+The images were captured using a calibrated Canon EOS R5 DSLR camera with dual fisheye lens at 6K resolution (6144×3072 pixels), then converted to 180-degree equirectangular projection format. To ensure physically accurate window view representation, each scene was captured alongside a 1:10 scale model of an office room with horizontal aperture. The capture locations maintained a minimum 6-meter distance from moving objects and aimed for balanced visual composition with approximately 25% greenery and 40% sky-to-window ratio, following European Daylight Standard EN17037 criteria.
+
+This dataset was originally developed for virtual reality research investigating how dynamic versus static window view representations affect visual perception and building occupant experience. When processed through our trained SID model, these real-world window view images provide valuable validation of the sky image descriptor space learned from the Sky Finder dataset, enabling evaluation of how the model generalizes to practical architectural viewing scenarios.
+
+#### 1.6.2 Methodology
+
+To project new sky images into the trained SID space, we developed a processing pipeline that ensures consistent representation with the Sky Finder dataset. The methodology follows these sequential steps:
+
+1. **Manual Image Cropping:** For images containing specific viewing contexts (e.g., window views), manual cropping can be applied to focus on the desired region. This step utilizes manually annotated binary masks to define the region of interest, ensuring that only relevant content is analyzed while excluding irrelevant elements.
+
+2. **Sky Region Detection and Cropping:** The sky region is automatically segmented using Grounded Segment Anything 2 (GSAM2) [6] with the keyword prompt "sky". This state-of-the-art segmentation model provides accurate and robust segmentation of sky regions in images, even under challenging conditions such as varying lighting or atmospheric effects, and it eliminates the need for manual annotation of new datasets. Following segmentation, the image is automatically cropped to the bounding box of the detected sky region, removing non-sky areas and focusing the analysis on the relevant atmospheric content.
+
+3. **Boundary Artifact Removal:** The cropped sky region undergoes inpainting using the TELEA algorithm with a radius of 3 pixels. This step removes segmentation boundary artifacts and ensures smooth transitions at mask boundaries, preserving the integrity of the sky region while eliminating potential artifacts that could affect descriptor quality.
+
+#### 1.6.3 Results
+
+The projection of window view images into the trained SID space demonstrates successful generalization of the learned sky descriptors to real-world architectural viewing scenarios. Figure 3 shows the UMAP visualization where the 42 window view images (represented as crosses) are distributed throughout the descriptor space alongside the Sky Finder dataset points.
+
+The window view images exhibit meaningful spatial distribution within the established sky condition clusters. Clear sky conditions from the window views (blue crosses) predominantly map to the rightmost region of the descriptor space, aligning with the clear sky cluster learned from the Sky Finder dataset. Partial sky conditions (orange crosses) distribute primarily in the central regions, overlapping with the mixed cloud and clear sky patterns identified during training. Overcast conditions (red crosses) cluster in the left portion of the space, corresponding to the heavily clouded regions established by the original training data.
+
+<div align="center">
+  <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_oos.png" alt="Sky Image Descriptor Space - Sky Class Grouping" width="90%">
+  <br>
+  <em><strong>Figure 3:</strong> Sky image descriptor space visualization with new window view images projected into the SID space. The new images are represented as crosses, with colors indicating their estimated sky condition class (blue for clear, orange for partial and red for overcast).</em>
+</div>
+
+### 1.7 Reproduction Procedure
 
 Follow these steps to reproduce our SID results by generating the dataset, training the model and plotting the SID space.
 
-#### 1.6.1 Sky Finder Dataset Generation
+#### 1.7.1 Sky Finder Dataset Generation
 
 To prepare the dataset for training, execute the following commands which will download and organize the Sky Finder images according to our classification schema:
 
@@ -178,7 +225,7 @@ python generate_sky_finder_dataset.py [-w <max-workers>] [-f] [-r]
 - `-f`, `--force`: (Optional, default: false) Forces re-download, re-extraction, re-classification, and re-splitting of data even if it already exists locally, ensuring you have the latest version.
 - `-r`, `--remove-data`: (Optional, default: false) Automatically removes temporary archives and extracted data after processing (keeps final split data) to save disk space.
 
-#### 1.6.2 Training the SID Model
+#### 1.7.2 Training the SID Model
 
 To train the SID model, execute the following commands:
 
@@ -205,7 +252,7 @@ python contrastive_net_train.py [-e <epochs>] [-b <batch-size>] [-w <workers>] [
 
 Model weights will be saved in the `data/models/contrastive_net` directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to `data/models/contrastive_net/baseline.ckpt`.
 
-#### 1.6.3 Generating Sky Finder Descriptors
+#### 1.7.3 Generating Sky Finder Descriptors
 
 To generate the descriptors for the Sky Finder dataset, execute the following commands:
 
@@ -220,7 +267,7 @@ python generate_sky_finder_descriptors.py [-w <workers>] [-f]
 
 The generated descriptors will be saved in the `generated/sky_finder_descriptors.json` file.
 
-#### 1.6.4 Plotting the SID Space
+#### 1.7.4 Plotting the SID Space
 
 To plot the SID space and visualize the results, execute the following commands:
 
@@ -228,14 +275,91 @@ To plot the SID space and visualize the results, execute the following commands:
 cd src/pipeline
 python plot_sky_image_descriptor_space.py [-g <group-by-type>] [-k <n-clusters>] [-i <interactive>]
 ```
-Parameters:
+
+**Parameters:**
 - `-g`, `--group-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default) and `cluster`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters, respectively.
 - `-k`, `--n-clusters`: (Optional, default is 3) Specifies the number of clusters to use when grouping by cluster type. This parameter is only relevant when `--group-by` is set to `cluster`.
 - `-i`, `--interactive`: (Optional, default is false) Enables interactive mode for the plot, allowing you to hover over points to see images.
 
-#### 1.6.5 Training the Classification Head
+
+#### 1.7.5 Training and Evaluating the Classification Head
+
+To train the classification head and evaluate the downstream classification performance:
+
+```bash
+cd src/sky_class_net
+python sky_class_train.py [-e <epochs>] [-b <batch-size>] [-w <workers>] [--evaluation-steps <evaluation-steps>] [--learning-rate <learning-rate>] [--weight-decay <weight-decay>] [--dropout-rate <dropout-rate>] [--project-name <project-name>] [--experiment-name <experiment-name>] [--accelerator <accelerator>] [--devices <devices>] [--precision <precision>] [--save-top-k <save-top-k>]
+```
+
+**Parameters:**
+- `-e`, `--epochs`: (Optional, default: 100) Number of training epochs.
+- `-b`, `--batch-size`: (Optional, default: 32) Batch size for training.
+- `-w`, `--n-workers`: (Optional, default: 1) Number of data loading workers.
+- `--evaluation-steps`: (Optional, default: 100) Number of steps between validation runs.
+- `--learning-rate`: (Optional, default: 1e-3) Learning rate for optimization.
+- `--weight-decay`: (Optional, default: 1e-4) Weight decay for regularization.
+- `--dropout-rate`: (Optional, default: 0.0) Dropout rate for regularization.
+- `--project-name`: (Optional, default: "lipid") W&B project name.
+- `--experiment-name`: (Optional, default: auto-generated timestamp) Custom experiment name.
+- `--accelerator`: (Optional, default: "gpu") Hardware accelerator to use (cpu/gpu/tpu).
+- `--devices`: (Optional, default: -1) Number of devices to use (-1 for all available).
+- `--precision`: (Optional, default: 32) Training precision (16/32).
+- `--save-top-k`: (Optional, default: 3) Number of best checkpoints to save.
+
+Model weights will be saved in the `data/models/sky_class_net` directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to `data/models/sky_class_net/baseline.ckpt`. To evaluate the trained classification model:
+
+```bash
+cd src/sky_class_net
+python sky_class_eval.py
+```
+
+The classification results will demonstrate the effectiveness of the learned SID representations for downstream sky condition classification tasks, producing the performance metrics shown in Table 1 of Section 1.5.2.
+
+#### 1.7.6 Plotting New Data in the SID Space
+
+To project new sky videos into the SID space, follow these steps:
+
+1. **Prepare the new video dataset**: Ensure the new sky videos are in a compatible format (e.g., MP4, AVI, MOV, MKV) and stored in the [data/videos/processed](data/videos/processed) directory. The videos should contain visible sky regions for accurate descriptor extraction.
+
+2. **Preparte the manually annotated masks**: If you have manually annotated masks for the new videos, place them in the [data/videos/masks](data/videos/masks) directory. This step is optional, typically used for datasets where specific regions of interest need to be focused on.
+
+3. **Run the projection script**: Execute the following command to process the new videos and project them into the SID space:
+
+```bash
+cd src/pipeline
+python run_pipeline [-vp <video-path>] [-mp <mask-path>] [-fr <frame-rate>] [-w <workers>] [-sam2 <sam2-type>] [-gdino <gdino-type>] [-bt <box-threshold>] [-tt <text-threshold>] [-sp] [-f]
+```
+
+**Parameters:**
+- `-vp`, `--video-path`: Path to the video file.
+- `-mp`, `--mask-path`: (Optional) Path to the manually annotated mask file. If provided, the script will use this mask to focus on specific regions of interest.
+- `-fr`, `--frame-rate`: (Optional, default: 1/3) Frame rate for processing the video. Higher values will extract more frames but require more processing time.
+- `-sam2`, `--sam2-type`: (Optional, default: "large") Type of SAM2 model to use for segmentation. Options include "large", "medium", and "base" or "small".
+- `-gdino`, `--gdino-type`: (Optional, default: "tiny") Type of G-DINO model to use for segmentation. Options include "tiny" or "base".
+- `-bt`, `--box-threshold`: (Optional, default: 0.35) Box threshold for SAM2 segmentation.
+- `-tt`, `--text-threshold`: (Optional, default: 0.35) Text threshold for SAM2 segmentation.
+- `-sp`, `--show-plots`: (Optional, default: false) If set, displays the generated plots for the projected SID space.
+- `-f`, `--force`: (Optional, default: false) Forces reprocessing of the video even if the descriptors already exist.
+
+4. **Plot the SID space**: After processing the new videos, you can visualize the projected descriptors in the SID space by executing:
+
+```bash
+cd src/pipeline
+python plot_pipeline.py 
+```
+
+**Parameters:**
 
 
+Or simply run the following command to plot all the generated descriptors in the SID space:
+
+```bash
+cd src/pipeline
+python plot_pipeline_all.py [-p <pipeline-path>]
+```
+
+**Parameters:**
+- `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
 
 
 
@@ -561,3 +685,7 @@ pip install --no-build-isolation -e grounding_dino
 [3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
 
 [4] McInnes, L., Healy, J., and Melville, J., "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction," arXiv preprint arXiv:1802.03426, 2018.
+
+[5] Cho, Y., Karmann, C., and Andersen, M., "Perception of window views in VR: Impact of display and type of motion on subjective and physiological responses," Building and Environment, Vol. 274, 2025, 112757. https://doi.org/10.1016/j.buildenv.2025.112757
+
+[6] GSAM2 TODO

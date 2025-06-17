@@ -141,7 +141,7 @@ def generate_descriptors_for_split(
 
             with torch.no_grad():
                 # Get sky image descriptor
-                image_descriptor = contrastive_model(image).cpu().numpy()[0].tolist()
+                sky_image_descriptor = contrastive_model(image).cpu().numpy()[0].tolist()
 
                 # Get cloud cover prediction
                 cloud_coverage, _ = cover_model(image)
@@ -166,7 +166,7 @@ def generate_descriptors_for_split(
                     descriptors[dataset_split][sky_class][camera_id][image_name] = {}
                 
                 descriptors[dataset_split][sky_class][camera_id][image_name].update({
-                    "image_descriptor": image_descriptor,
+                    "sky_image_descriptor": sky_image_descriptor,
                     "cloud_coverage": mean_cloud_coverage,
                 })
 
