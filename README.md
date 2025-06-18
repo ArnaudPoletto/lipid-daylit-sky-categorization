@@ -49,7 +49,7 @@ Our contrastive learning framework relies on creating meaningful sample pairs:
 
 #### 1.2.1 SID Backbone Network
 
-The SID model employs a ResNet50 backbone pretrained on ImageNet as the feature encoder, with the original classification head replaced by a projection head. The projection head consists of a two-layer multi-layer perceptron (MLP) with ReLU activation between layers, mapping the 2048-dimensional ResNet50 feature vector to a 16-dimensional SID space. The final descriptors are L2-normalized.
+The SID model employs a ResNet50 backbone pretrained on ImageNet [4] as the feature encoder, with the original classification head replaced by a projection head. The projection head consists of a two-layer multi-layer perceptron (MLP) with ReLU activation between layers, mapping the 2048-dimensional ResNet50 feature vector to a 16-dimensional SID space. The final descriptors are L2-normalized.
 
 #### 1.2.2 Classification Head for Downstream Validation
 
@@ -110,7 +110,7 @@ The classification head training follows a standard supervised learning approach
 - **Optimizer**: AdamW with a learning rate of $10^{-3}$ and weight decay of $10^{-4}$.
 - **Batch Size**: 32 images.
 - **Training Duration**: 100 epochs with early stopping based on validation loss.
-- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 5 epochs and a factor of 0.5.
+- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
 
 These configurations provide a good balance between performance and computational efficiency, allowing the models to learn meaningful representations while remaining trainable on consumer-grade hardware.
 
@@ -120,7 +120,7 @@ These configurations provide a good balance between performance and computationa
 
 #### 1.5.1 Sky Image Descriptor Space Visualization
 
-The trained SID model is evaluated on the Sky Finder dataset, and the results are visualized using UMAP [4]. The resulting plots demonstrate how the model effectively clusters similar sky conditions together in the descriptor space.
+The trained SID model is evaluated on the Sky Finder dataset, and the results are visualized using UMAP [5]. The resulting plots demonstrate how the model effectively clusters similar sky conditions together in the descriptor space.
 
 Figure 2a shows the sky image descriptor space visualization grouped by semantic sky class labels (clear, partial, overcast), revealing natural clustering of similar sky conditions. Remarkably, when applying unsupervised K-means clustering to the same descriptor space (Figures 2b-c), the resulting clusters closely follow the boundaries of the semantic sky classes. This alignment between unsupervised clustering and human-interpretable labels demonstrates that the SID model has learned meaningful representations that capture real physical and visual patterns in sky conditions without requiring explicit supervision during the descriptor extraction phase.
 
@@ -173,13 +173,15 @@ The classification results demonstrate good performance across all evaluation me
 
 </div>
 
+Analysis of the confusion matrix reveals interesting patterns in per-class performance. The clear sky class achieves the highest F1 score (0.9040), followed by overcast conditions (0.8904), while partial sky conditions show the lowest performance (0.7826). This performance disparity likely stems from the inherently ambiguous nature of partial sky conditions, which represent a transitional state between clear and overcast skies. The non-binary characteristics of partial conditions create classification challenges at decision boundaries, where distinguishing between clear-partial or overcast-partial transitions becomes ambiguous. This finding aligns with the expected difficulty in categorizing intermediate sky states and highlights the model's stronger performance on more distinctive sky conditions with clearer visual characteristics.
+
 ### 1.6 Plotting New Data in the SID Space
 
 The SID space was built on the sky finder dataset, but new sky images can be projected into the SID space using the trained SID model. This allows for the visualization of new sky images in the same descriptor space, enabling comparison between new images or between sky finder manually labelled images.
 
 #### 1.6.1 Window View Dataset
 
-Adapting our own dataset of window views introduced in [5], we can pass the images through the SID model to obtain their sky image descriptors. The window view dataset contains 45 high-resolution images captured from fifteen different locations across the EPFL campus in Switzerland between March and May 2023, encompassing a wide range of atmospheric conditions including clear, partial, and overcast skies.
+Adapting our own dataset of window views introduced in [6], we can pass the images through the SID model to obtain their sky image descriptors. The window view dataset contains 45 high-resolution images captured from fifteen different locations across the EPFL campus in Switzerland between March and May 2023, encompassing a wide range of atmospheric conditions including clear, partial, and overcast skies.
 
 The images were captured using a calibrated Canon EOS R5 DSLR camera with dual fisheye lens at 6K resolution (6144×3072 pixels), then converted to 180-degree equirectangular projection format. To ensure physically accurate window view representation, each scene was captured alongside a 1:10 scale model of an office room with horizontal aperture. The capture locations maintained a minimum 6-meter distance from moving objects and aimed for balanced visual composition with approximately 25% greenery and 40% sky-to-window ratio, following European Daylight Standard EN17037 criteria.
 
@@ -191,7 +193,7 @@ To project new sky images into the trained SID space, we developed a processing 
 
 1. **Manual Image Cropping:** For images containing specific viewing contexts (e.g., window views), manual cropping can be applied to focus on the desired region. This step utilizes manually annotated binary masks to define the region of interest, ensuring that only relevant content is analyzed while excluding irrelevant elements.
 
-2. **Sky Region Detection and Cropping:** The sky region is automatically segmented using Grounded Segment Anything 2 (GSAM2) [6] with the keyword prompt "sky". This state-of-the-art segmentation model provides accurate and robust segmentation of sky regions in images, even under challenging conditions such as varying lighting or atmospheric effects, and it eliminates the need for manual annotation of new datasets. Following segmentation, the image is automatically cropped to the bounding box of the detected sky region, removing non-sky areas and focusing the analysis on the relevant atmospheric content.
+2. **Sky Region Detection and Cropping:** The sky region is automatically segmented using Grounded Segment Anything 2 (GSAM2) [7] with the keyword prompt "sky". This state-of-the-art segmentation model provides accurate and robust segmentation of sky regions in images, even under challenging conditions such as varying lighting or atmospheric effects, and it eliminates the need for manual annotation of new datasets. Following segmentation, the image is automatically cropped to the bounding box of the detected sky region, removing non-sky areas and focusing the analysis on the relevant atmospheric content.
 
 3. **Boundary Artifact Removal:** The cropped sky region undergoes inpainting using the TELEA algorithm with a radius of 3 pixels. This step removes segmentation boundary artifacts and ensures smooth transitions at mask boundaries, preserving the integrity of the sky region while eliminating potential artifacts that could affect descriptor quality.
 
@@ -364,6 +366,143 @@ To project new sky videos into the SID space, follow these steps:
 
 
 
+## 2. Cloud Coverage
+
+The cloud coverage descriptor provides a quantitative measure of sky conditions by estimating the percentage of sky pixels covered by clouds. This descriptor leverages deep learning-based segmentation to distinguish between clear sky and cloud regions, outputting a continuous value between 0 (completely clear) and 1 (completely overcast). Unlike categorical classification approaches, this regression-based method captures the nuanced gradations in cloud coverage that characterize real-world sky conditions.
+
+
+
+### 2.1 Datasets
+
+#### 2.1.1 Sky Finder Cover Dataset
+
+In this repository, we introduce the Sky Finder Cover Dataset, which is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
+
+The dataset was created through a meticulous annotation process:
+- **Selection:** Representative images were selected from each sky condition category to ensure diversity across weather conditions, times of day, and cloud formations.
+- **Manual Segmentation:** Annotators created pixel-precise masks, where each pixel is labeled as either cloud-covered (white), partially covered (gray) or clear sky/ground (black). Special attention was given to cloud boundaries and transitional regions to ensure accurate coverage estimation.
+
+For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively, maintaining representative distributions across all sky condition classes.
+
+#### 2.1.2 Sky Finder Active Dataset
+
+To address the limited size of manually annotated data, we implement an active learning framework that leverages high-confidence pseudo-labels from the broader Sky Finder dataset:
+
+- **Initial Model Training:** A cloud coverage model was first trained on the manually annotated Sky Finder Cover Dataset using the architecture and training procedure described in Sections 2.2 and 2.4.
+- **Pseudo-Label Generation:** The trained model was systematically applied to unlabeled images from the full Sky Finder Dataset, where prediction uncertainty was quantified using pixel-wise entropy measurements across the segmentation output. Through this uncertainty quantification process, only good predictions exhibiting low entropy were selected as pseudo-labels, ensuring quality control through confidence-based filtering. This threshold-based selection mechanism effectively retained only the most confident predictions for training augmentation, maintaining annotation quality while significantly expanding the available training data.
+
+This active learning approach expands the training set with 359 high-confidence pseudo-labeled images and the validation set with 128 additional pseudo-labeled images, significantly increasing the available training data while maintaining annotation quality through automated confidence filtering.
+
+
+
+### 2.2 Model Architecture
+
+The cloud coverage descriptor employs a U-Net [8] architecture with a ResNet50 backbone pretrained on ImageNet serving as the feature encoder. This encoder-decoder structure is specifically designed for dense prediction tasks, making it well-suited for pixel-level cloud segmentation.
+
+**Encoder (ResNet50 Backbone):** The ResNet50 encoder progressively downsamples input images while extracting hierarchical features at multiple scales. The pretrained weights provide robust low-level feature representations that transfer effectively to sky imagery, capturing edges, textures, and structural patterns essential for cloud boundary detection.
+
+**Decoder with Skip Connections:** The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud boundary delineation.
+
+**Dual-Output Design:** The architecture incorporates two complementary outputs to enhance learning:
+1. **Primary Segmentation Output:** Pixel-wise cloud coverage estimation through the standard U-Net segmentation head, producing a probability map where each pixel represents the likelihood of cloud coverage.
+
+2. **Auxiliary Classification Branch:** A secondary convolutional branch processes feature maps before the final segmentation layer to output a single scalar value between 0 and 1, representing overall sky condition intensity (0 for clear, 0.5 for partial, 1 for overcast).
+
+This auxiliary branch provides additional supervisory signal during training, enables evaluation of global sky classification accuracy, and enforces consistency between pixel-level predictions and image-level sky conditions, resulting in more robust and interpretable cloud coverage estimates.
+
+
+
+### 2.3 Training Objective
+
+The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
+
+$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{\text{Focal}} + 0.5 \cdot \mathcal{L}_{\text{Dice}} + 0.1 \cdot \mathcal{L}_{\text{BCE}}$$
+
+The focal loss ($\mathcal{L}_{\text{Focal}}$) addresses class imbalance and focuses learning on difficult examples:
+
+$$\mathcal{L}_{\text{Focal}} = -\alpha(1-p_t)^\gamma\log(p_t)$$
+
+Where $p_t$ is the predicted probability for the true class, $\alpha=0.5$ balances class importance, and $\gamma=2.0$ down-weights easy examples, forcing the model to focus on challenging cloud boundaries and ambiguous regions.
+
+The dice loss ($\mathcal{L}_{\text{Dice}}$) optimizes spatial overlap between predicted and ground truth segmentations:
+
+$$\mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
+
+Where $p_i$ and $g_i$ are predicted and ground truth probabilities for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ ensures numerical stability. This loss is particularly effective for segmentation tasks as it directly optimizes the overlap metric used for evaluation.
+
+For the auxiliary classification branch, binary cross-entropy loss ($\mathcal{L}_{\text{BCE}}$) provides supervision using image-level sky condition labels:
+$$\mathcal{L}_{\text{BCE}} = -[y \log(\hat{y}) + (1-y) \log(1-\hat{y})]$$
+
+Where $y$ is the ground truth sky condition class and $\hat{y}$ is the predicted classification score. This ensures consistency between pixel-level and image-level predictions.
+
+
+
+### 2.4 Training Procedure
+
+The cloud coverage model was trained using a two-stage approach to leverage both manually annotated and pseudo-labeled data effectively:
+
+#### 2.4.1 Manual Labels Only:
+
+- **Optimizer:** AdamW with learning rate $10^{-4}$ and weight decay $10^{-4}$.
+- **Batch Size:** 2 images per batch.
+- **Training Duration:** 100 epochs.
+- **Learning Rate Scheduler:** Reduce on plateau with patience of 1 epoch and factor of 0.5.
+
+#### 2.4.2 Active Learning Enhancement:
+
+- **Initialization:** Best checkpoint from Stage 1.
+- **Additional Data:** 359 pseudo-labeled training images, 128 pseudo-labeled validation images.
+- **Optimizer:** AdamW with learning rate $10^{-4}$ and weight decay $10^{-4}$.
+- **Batch Size:** 2 images per batch.
+- **Training Duration:** 50 additional epochs with early stopping based on validation loss.
+- **Learning Rate Scheduler:** Reduce on plateau with patience of 1 epoch and factor of 0.5.
+
+**Hardware Configuration:** Training was conducted on a single NVIDIA RTX 3080 GPU with 10GB memory, enabling efficient processing of high-resolution sky images while maintaining reasonable training times.
+
+
+
+### 2.5 Results
+
+#### 2.5.1 Quantitative Performance Analysis
+
+The cloud coverage model demonstrates strong performance across multiple evaluation metrics, with the active learning approach showing consistent improvements over the baseline model trained solely on manual annotations. The active learning enhanced model demonstrates superior performance across all metrics, with IoU improvements ranging from 2.7% to 7.1% depending on the validation set composition. The best configuration achieves a mean absolute coverage error of 8.24%, representing good accuracy in quantitative cloud coverage estimation across diverse sky conditions.
+
+<div align="center">
+   <em><strong>Table 2:</strong> Comprehensive performance comparison across training and validation configurations. Coverage Error represents the mean absolute percentage error in estimating cloud coverage. Sky Class Error represents the classification error rate for three-class sky condition categorization.</em>
+</div>
+
+<div align="center">
+
+| Training Data | Validation Data | IoU | Dice Score | Coverage Error | Sky Class Error |
+|---------------|-----------------|-----|------------|----------------|-----------------|
+| Manual Labels Only | Manual Validation | 0.3632 | 0.4605 | 0.1380 | 0.2472 |
+| Manual Labels Only | Manual + Pseudo Validation | 0.3697 | 0.4665 | 0.0927 | 0.2840 |
+| Manual + Pseudo Labels | Manual Validation | 0.3905 | 0.4825 | 0.1365 | 0.2107 |
+| Manual + Pseudo Labels | Manual + Pseudo Validation | **0.4408** | **0.5217** | **0.0824** | **0.2114** |
+
+</div>
+
+#### 2.5.2 SID Space Visualization with Cloud Coverage
+
+To understand the relationship between learned sky representations and cloud coverage estimates, we visualized the Sky Image Descriptor (SID) space colored by predicted cloud coverage values. This analysis reveals important insights about model performance and limitations.
+
+<div align="center">
+  <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_cloud_cover.png" alt="SID Space with Cloud Coverage" width="90%">
+  <br>
+  <em><strong>Figure 4:</strong> UMAP visualization of the Sky Image Descriptor space colored by predicted cloud coverage values. Dark blue represents clear skies (low coverage), while yellow represents overcast conditions (high coverage).</em>
+</div>
+
+The visualization demonstrates clear performance patterns across different sky conditions, with the model performing exceptionally well for clear sky conditions in the rightmost cluster, consistently predicting low cloud coverage values (dark blue) that align with ground truth expectations. Moving toward more complex conditions, overcast skies with significant visual texture and structure in the upper center regions show successful high cloud coverage identification, while the central regions exhibit smooth gradations in cloud coverage estimates that effectively capture the transitional nature of partial sky conditions with appropriate intermediate values. However, a critical limitation emerges in the leftmost cluster, where uniform overcast skies with minimal texture variation display inconsistent cloud coverage predictions, showing a problematic tendency to estimate low coverage values (dark blue) despite representing heavily clouded conditions that should yield consistently high coverage estimates.
+
+The observed performance disparity in uniform overcast conditions can be attributed to several fundamental challenges that highlight the inherent limitations of sky-only analysis. During manual annotation, human annotators naturally incorporated contextual cues from ground regions to assess sky conditions, utilizing ground shadows, ambient lighting conditions, and overall scene brightness as critical indicators of atmospheric conditions that are completely unavailable when analyzing isolated sky regions. This information loss is compounded by the model's inherent texture dependency, as uniform overcast skies often lack the distinctive structural features and spatial variation patterns that the model relies upon for accurate segmentation. Furthermore, lighting ambiguity creates additional classification challenges, as uniform conditions encompass a wide spectrum of scenarios ranging from bright days with thin, diffuse cloud cover to dark, heavily clouded conditions that can appear visually similar despite representing vastly different levels of actual cloud density and coverage.
+
+
+
+### 2.6 Reproduction Procedure
+
+
+
+## 3. Optical Flow
 
 
 
@@ -397,8 +536,7 @@ To project new sky videos into the SID space, follow these steps:
 
 
 
-
-## 2. Sky Cover Descriptor
+## 2. Cloud Coverage Estimation
 
 The sky cover descriptor quantifies cloud coverage by performing regression-based segmentation of sky regions. This descriptor combines manually-labeled data from our repository with pseudo-labels derived from the Sky Finder dataset in an active learning framework. By estimating the cloud coverage percentage across all sky pixels, it provides a single numerical representation of sky conditions.
 
@@ -685,8 +823,12 @@ pip install --no-build-isolation -e grounding_dino
 
 [3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
 
-[4] McInnes, L., Healy, J., and Melville, J., "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction," arXiv preprint arXiv:1802.03426, 2018.
+[4] ImageNet TODO
 
-[5] Cho, Y., Karmann, C., and Andersen, M., "Perception of window views in VR: Impact of display and type of motion on subjective and physiological responses," Building and Environment, Vol. 274, 2025, 112757. https://doi.org/10.1016/j.buildenv.2025.112757
+[5] McInnes, L., Healy, J., and Melville, J., "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction," arXiv preprint arXiv:1802.03426, 2018.
 
-[6] GSAM2 TODO
+[6] Cho, Y., Karmann, C., and Andersen, M., "Perception of window views in VR: Impact of display and type of motion on subjective and physiological responses," Building and Environment, Vol. 274, 2025, 112757. https://doi.org/10.1016/j.buildenv.2025.112757
+
+[7] GSAM2 TODO
+
+[8] UNet TODO
