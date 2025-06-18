@@ -416,22 +416,23 @@ This auxiliary branch provides additional supervisory signal during training, en
 
 The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
 
-$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{\text{Focal}} + 0.5 \cdot \mathcal{L}_{\text{Dice}} + 0.1 \cdot \mathcal{L}_{\text{BCE}}$$
+$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{F} + 0.5 \cdot \mathcal{L}_{D} + 0.1 \cdot \mathcal{L}_{B}$$
 
 The focal loss ($\mathcal{L}_{\text{Focal}}$) addresses class imbalance and focuses learning on difficult examples:
 
-$$\mathcal{L}_{\text{Focal}} = -\alpha(1-p_t)^\gamma\log(p_t)$$
+$$\mathcal{L}_{F} = -\alpha(1-p_t)^\gamma\log(p_t)$$
 
 Where $p_t$ is the predicted probability for the true class, $\alpha=0.5$ balances class importance, and $\gamma=2.0$ down-weights easy examples, forcing the model to focus on challenging cloud boundaries and ambiguous regions.
 
-The dice loss ($\mathcal{L}_{\text{Dice}}$) optimizes spatial overlap between predicted and ground truth segmentations:
+The dice loss ($\mathcal{L}_{D}$) optimizes spatial overlap between predicted and ground truth segmentations:
 
-$$\mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
+$$\mathcal{L}_{D} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
 
 Where $p_i$ and $g_i$ are predicted and ground truth probabilities for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ ensures numerical stability. This loss is particularly effective for segmentation tasks as it directly optimizes the overlap metric used for evaluation.
 
 For the auxiliary classification branch, binary cross-entropy loss ($\mathcal{L}_{\text{BCE}}$) provides supervision using image-level sky condition labels:
-$$\mathcal{L}_{\text{BCE}} = -[y \log(\hat{y}) + (1-y) \log(1-\hat{y})]$$
+
+$$\mathcal{L}_{B} = -[y \log(\hat{y}) + (1-y) \log(1-\hat{y})]$$
 
 Where $y$ is the ground truth sky condition class and $\hat{y}$ is the predicted classification score. This ensures consistency between pixel-level and image-level predictions.
 
