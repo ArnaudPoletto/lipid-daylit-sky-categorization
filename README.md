@@ -416,9 +416,9 @@ This auxiliary branch provides additional supervisory signal during training, en
 
 The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
 
-$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{F} + 0.5 \cdot \mathcal{L}_{D} + 0.1 \cdot \mathcal{L}_{B}$$
+$$\mathcal{L}\_{\text{total}} = 0.5 \cdot \mathcal{L}\_{F} + 0.5 \cdot \mathcal{L}\_{D} + 0.1 \cdot \mathcal{L}\_{B}$$
 
-The focal loss ($\mathcal{L}_{\text{Focal}}$) addresses class imbalance and focuses learning on difficult examples:
+The focal loss ($\mathcal{L}_{F}$) addresses class imbalance and focuses learning on difficult examples:
 
 $$\mathcal{L}_{F} = -\alpha(1-p_t)^\gamma\log(p_t)$$
 
