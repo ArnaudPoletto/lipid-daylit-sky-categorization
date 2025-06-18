@@ -59,7 +59,7 @@ def create_umap_reducer(sky_image_descriptors: np.ndarray) -> UMAP:
 
 def generate_sky_type_colors(sky_types: List[str]) -> Tuple[List[str], Dict[str, str]]:
     """
-    Generate colors and labels for sky type grouping.
+    Generate colors and labels for sky type coloring.
 
     Args:
         sky_types (List[str]): List of sky type labels.
@@ -112,7 +112,7 @@ def generate_cluster_colors(sky_image_descriptors: np.ndarray, k: int) -> Tuple[
 
 def generate_cloud_cover_colors(cloud_coverages: List[float]) -> Tuple[List[str], Dict[str, str]]:
     """
-    Generate colors and labels for cloud cover grouping.
+    Generate colors and labels for cloud cover coloring.
 
     Args:
         cloud_coverages (List[float]): List of cloud coverages.
@@ -195,12 +195,12 @@ def parse_args() -> argparse.Namespace:
     )
     
     parser.add_argument(
-        "-g",
-        "--group-by",
+        "-c",
+        "--color-by",
         type=str,
         choices=["sky_type", "cluster", "cloud_cover"],
         default="sky_type",
-        help="Grouping method for visualization: 'sky_type' for semantic labels, 'cluster' for K-means clustering or 'cloud_cover' for cloud cover percentage (default: sky_type).",
+        help="Coloring method for visualization: 'sky_type' for semantic labels, 'cluster' for K-means clustering or 'cloud_cover' for cloud cover percentage (default: sky_type).",
     )
     
     parser.add_argument(
@@ -229,7 +229,7 @@ def main() -> None:
 
     print("▶️  Starting sky image descriptor space visualization...")
     print(f"📋 Configuration:")
-    print(f"   • Grouping method: {args.group_by}")
+    print(f"   • Coloring method: {args.color_by}")
     print(f"   • K-means clusters: {args.k_clusters}")
     print(f"   • Interactive mode: {args.interactive}")
 
@@ -242,15 +242,15 @@ def main() -> None:
         print("▶️  Creating UMAP dimensionality reduction...")
         fitted_umap_reducer = create_umap_reducer(sky_image_descriptors)
 
-        # Generate colors based on grouping method
-        if args.group_by == "sky_type":
-            print("▶️  Generating colors for sky type grouping...")
+        # Generate colors based on coloring method
+        if args.color_by == "sky_type":
+            print("▶️  Generating colors for sky type coloring...")
             colors, color_labels = generate_sky_type_colors(sky_types)
-        elif args.group_by == "cluster":
-            print(f"▶️  Generating colors for cluster grouping (K={args.k_clusters})...")
+        elif args.color_by == "cluster":
+            print(f"▶️  Generating colors for cluster coloring (K={args.k_clusters})...")
             colors, color_labels = generate_cluster_colors(sky_image_descriptors, args.k_clusters)
-        elif args.group_by == "cloud_cover":
-            print("▶️  Generating colors for cloud cover grouping...")
+        elif args.color_by == "cloud_cover":
+            print("▶️  Generating colors for cloud cover coloring...")
             colors, color_labels = generate_cloud_cover_colors(cloud_coverages)
 
         # Create visualization

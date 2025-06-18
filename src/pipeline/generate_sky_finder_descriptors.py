@@ -33,8 +33,8 @@ def load_contrastive_model() -> ContrastiveNet:
     """
     try:
         contrastive_model = ContrastiveNet(
-            projection_dim=PROJECTION_DIM, 
-            pretrained=True, 
+            projection_dim=PROJECTION_DIM,
+            pretrained=True,
             normalize_embeddings=False,
         )
         lightning_contrastive_model = ContrastiveLightningModel.load_from_checkpoint(
@@ -117,18 +117,18 @@ def generate_descriptors_for_split(
 ) -> Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, List[float]]]]]]:
     """
     Generate descriptors for a specific data split.
-    
+
     Args:
         dataloader (DataLoader): DataLoader for the dataset split.
         contrastive_model (ContrastiveNet): Pretrained contrastive model for image embeddings.
         cover_model (UNet): Pretrained UNet model for cloud cover prediction.
         split_name (str): Name of the data split (train/val/test).
-    
+
     Returns:
         Dict: A nested dictionary containing descriptors for each image in the split.
     """
     descriptors = {}
-    
+
     for batch in tqdm(dataloader, desc=f"⏳ Generating {split_name} descriptors..."):
         try:
             dataset_split = batch[0][0]
@@ -141,17 +141,24 @@ def generate_descriptors_for_split(
 
             with torch.no_grad():
                 # Get sky image descriptor
-                sky_image_descriptor = contrastive_model(image).cpu().numpy()[0].tolist()
+                sky_image_descriptor = (
+                    contrastive_model(image).cpu().numpy()[0].tolist()
+                )
 
                 # Get cloud cover prediction
                 cloud_coverage, _ = cover_model(image)
                 cloud_coverage = cloud_coverage[0, 0, :, :].detach().cpu().numpy()
                 mask = mask.cpu().numpy()
-                mask = torch.nn.functional.interpolate(
-                    torch.tensor(mask).unsqueeze(0).unsqueeze(0).float(),
-                    size=cloud_coverage.shape,
-                    mode='nearest',
-                ).squeeze().numpy() > 0.5
+                mask = (
+                    torch.nn.functional.interpolate(
+                        torch.tensor(mask).unsqueeze(0).unsqueeze(0).float(),
+                        size=cloud_coverage.shape,
+                        mode="nearest",
+                    )
+                    .squeeze()
+                    .numpy()
+                    > 0.5
+                )
                 cloud_coverage = cloud_coverage[mask]
                 mean_cloud_coverage = float(cloud_coverage.mean())
 
@@ -164,11 +171,13 @@ def generate_descriptors_for_split(
                     descriptors[dataset_split][sky_class][camera_id] = {}
                 if image_name not in descriptors[dataset_split][sky_class][camera_id]:
                     descriptors[dataset_split][sky_class][camera_id][image_name] = {}
-                
-                descriptors[dataset_split][sky_class][camera_id][image_name].update({
-                    "sky_image_descriptor": sky_image_descriptor,
-                    "cloud_coverage": mean_cloud_coverage,
-                })
+
+                descriptors[dataset_split][sky_class][camera_id][image_name].update(
+                    {
+                        "sky_image_descriptor": sky_image_descriptor,
+                        "cloud_coverage": mean_cloud_coverage,
+                    }
+                )
 
         except Exception as e:
             print(f"❌ Failed to process batch in {split_name}: {e}")
@@ -245,21 +254,25 @@ def save_descriptors(
     try:
         # Ensure output directory exists
         os.makedirs(os.path.dirname(SKY_FINDER_DESCRIPTORS_PATH), exist_ok=True)
-        
+
         # Save descriptors to JSON file
         with open(SKY_FINDER_DESCRIPTORS_PATH, "w") as f:
             json.dump(descriptors, f, indent=4)
-        
-        print(f"✅ Descriptors saved successfully to {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}")
-        
+
+        print(
+            f"✅ Descriptors saved successfully to {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}"
+        )
+
         # Print summary statistics
         total_images = 0
         for split_data in descriptors.values():
             for class_data in split_data.values():
                 for camera_data in class_data.values():
                     total_images += len(camera_data)
-        print(f"📊 Generated descriptors for {total_images} images across {len(descriptors)} splits.")
-        
+        print(
+            f"📊 Generated descriptors for {total_images} images across {len(descriptors)} splits."
+        )
+
     except Exception as e:
         print(f"❌ Failed to save descriptors: {e}")
         raise
@@ -272,7 +285,9 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed command line arguments.
     """
-    parser = argparse.ArgumentParser(description="Generate sky finder descriptors using pretrained models.")
+    parser = argparse.ArgumentParser(
+        description="Generate sky finder descriptors using pretrained models."
+    )
 
     parser.add_argument(
         "-w",
@@ -297,19 +312,23 @@ def main() -> None:
     Main function to generate sky finder descriptors.
     """
     args = parse_args()
-    
+
     print("▶️  Starting sky finder descriptor generation...")
     print(f"📋 Configuration:")
     print(f"   • Workers: {args.n_workers}")
     print(f"   • Force overwrite: {args.force}")
-    print(f"   • Contrastive checkpoint: {os.path.abspath(CONTRASTIVE_CHECKPOINT_PATH)}")
+    print(
+        f"   • Contrastive checkpoint: {os.path.abspath(CONTRASTIVE_CHECKPOINT_PATH)}"
+    )
     print(f"   • UNet checkpoint: {os.path.abspath(UNET_ACTIVE_CHECKPOINT_PATH)}")
     print(f"   • Output path: {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}")
     print(f"   • Device: {DEVICE}")
 
     # Check if output file already exists and handle force flag early
     if os.path.exists(SKY_FINDER_DESCRIPTORS_PATH) and not args.force:
-        print(f"⚠️  Descriptors file already exists at {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}")
+        print(
+            f"⚠️  Descriptors file already exists at {os.path.abspath(SKY_FINDER_DESCRIPTORS_PATH)}"
+        )
         print("Use --force to overwrite existing file.")
         sys.exit(0)
 

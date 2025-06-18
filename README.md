@@ -275,12 +275,12 @@ To plot the SID space and visualize the results, execute the following commands:
 
 ```bash
 cd src/pipeline
-python plot_sky_image_descriptor_space.py [-g <group-by-type>] [-k <n-clusters>] [-i <interactive>]
+python plot_sky_image_descriptor_space.py [-c <color-by>] [-k <n-clusters>] [-i <interactive>]
 ```
 
 **Parameters:**
-- `-g`, `--group-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default) and `cluster`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters, respectively.
-- `-k`, `--n-clusters`: (Optional, default is 3) Specifies the number of clusters to use when grouping by cluster type. This parameter is only relevant when `--group-by` is set to `cluster`.
+- `-c`, `--color-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default) and `cluster`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters, respectively.
+- `-k`, `--n-clusters`: (Optional, default is 3) Specifies the number of clusters to use when grouping by cluster type. This parameter is only relevant when `--color-by` is set to `cluster`.
 - `-i`, `--interactive`: (Optional, default is false) Enables interactive mode for the plot, allowing you to hover over points to see images.
 
 
@@ -501,320 +501,44 @@ The observed performance disparity in uniform overcast conditions can be attribu
 
 ### 2.6 Reproduction Procedure
 
+**TODO**
+
 
 
 ## 3. Optical Flow
 
+Optical flow analysis captures the dynamic characteristics of sky conditions by quantifying pixel-level motion patterns between consecutive video frames. This temporal descriptor provides insights into cloud movement, atmospheric dynamics, and weather transitions that are impossible to capture from static images alone, serving as a complementary feature to the appearance-based Sky Image Descriptors.
 
 
 
+### 3.1 Methodology
 
+We employ the Farneback optical flow algorithm implemented in OpenCV to compute dense optical flow fields between consecutive frames sampled at 3-second intervals in sky videos. The Farneback method estimates motion by analyzing the displacement of intensity patterns between frames, making it well-suited for capturing cloud movement and atmospheric dynamics without requiring feature tracking.
 
+For each video sequence, we extract the mean optical flow magnitude across all sky pixels as the primary temporal descriptor, providing a single scalar value that quantifies the overall motion intensity in the sky region.
 
 
 
+### 3.2 Results
 
+#### 3.2.1 Optical Flow Magnitude in SID Space
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## 2. Cloud Coverage Estimation
-
-The sky cover descriptor quantifies cloud coverage by performing regression-based segmentation of sky regions. This descriptor combines manually-labeled data from our repository with pseudo-labels derived from the Sky Finder dataset in an active learning framework. By estimating the cloud coverage percentage across all sky pixels, it provides a single numerical representation of sky conditions.
-
-
-
-### 2.1 Datasets
-
-#### 2.1.1 Sky Finder Cover Dataset
-
-The Sky Finder Cover Dataset is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
-
-The dataset was created through a meticulous annotation process:
-1. **Selection**: Representative images were selected from each sky condition category to ensure diversity.
-2. **Manual Segmentation**: Annotators created pixel-precise binary masks, where each pixel is labeled as either overcast (white), partially covered (gray) or clear sky/ground (0).
-
-For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively.
-
-#### 2.1.2 Sky Finder Active Dataset
-
-The Sky Finder Active Dataset leverages an active learning approach to expand the training data through high-confidence pseudo-labels:
-
-1. **Initial Model Training**: A sky cover model was first trained on the manually annotated Sky Finder Cover Dataset, as detailed in Section 2.4.
-2. **Pseudo-Label Generation**:
-    - The trained model was applied to unlabeled images from the Sky Finder Dataset.
-    - Prediction uncertainty was quantified using pixel-wise entropy measurements.
-    - Only predictions with low entropy (high confidence) were selected.
-
-For experimental evaluation, the training set was augmented with 359 high-confidence pseudo-labeled images, while the validation set was augmented with an additional 128 pseudo-labeled images. This active learning approach expands the available training data while maintaining quality through confidence-based selection.
-
-
-
-### 2.2 Model Architecture
-
-The sky cover descriptor employs a U-Net architecture with a ResNet50 backbone pretrained on ImageNet1K_V2 serving as the encoder. The decoder consists of upsampling blocks that progressively restore spatial resolution through bilinear interpolation, followed by convolutional layers. Skip connections from corresponding encoder levels are concatenated with decoder features at each resolution level, preserving fine-grained spatial information essential for accurate cloud segmentation.
-
-The architecture incorporates a dual-output design to enhance learning guidance:
-
-1. **Primary Output**: Pixel-wise cloud coverage estimation through the standard U-Net segmentation head.
-2. **Auxiliary Classification Branch**: A secondary convolutional branch that processes the feature maps before the final segmentation layer to output a single scalar value between 0 and 1, representing the overall sky condition class (0 for clear, 0.5 for partial, 1 for overcast).
-
-This auxiliary branch serves multiple purposes: it provides additional supervisory signal during training by leveraging existing image-level sky condition labels, enables evaluation of sky classification accuracy, and helps assess the quality of learned feature representations. Most importantly, it guides the learning process by enforcing consistency between pixel-level predictions and global sky conditions.
-
-
-
-### 2.3 Training Objective
-
-The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
-
-$$\mathcal{L}_{\text{total}} = 0.5 \cdot \mathcal{L}_{\text{Focal}} + 0.5 \cdot \mathcal{L}_{\text{Dice}} + 0.1 \cdot \mathcal{L}_{\text{BCE}}$$
-
-Where $\mathcal{L}_{\text{Focal}}$ is defined with $\alpha=0.5$ and $\gamma=2.0$ to focus on hard-to-classify examples:
-
-$$\mathcal{L}_{\text{Focal}} = -\alpha(1-p_t)^\gamma\log(p_t)$$
-
-Where $p_t$ is the predicted probability for the true class, $\alpha$ is the weighting factor for class balance, and $\gamma$ is the focusing parameter that down-weights easy examples.
-
-$\mathcal{L}_{\text{Dice}}$ optimizes overlap between predicted and ground truth segmentations:
-
-$$\mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
-
-Where $p_i$ is the predicted probability for pixel $i$, $g_i$ is the ground truth label for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ is a small constant for numerical stability.
-
-And $\mathcal{L}_{\text{BCE}}$ provides supervision for the auxiliary classification branch using binary cross-entropy:
-
-$$\mathcal{L}_{\text{BCE}} = -[y \log(\hat{y}) + (1-y) \log(1-\hat{y})]$$
-
-Where $y$ is the ground truth sky condition class (0 for clear, 0.5 for partial, 1 for overcast) and $\hat{y}$ is the predicted classification score from the auxiliary branch.
-
-This multi-objective loss function balances pixel-wise classification accuracy, structural similarity, and global sky condition consistency, resulting in improved cloud segmentation performance while providing interpretable classification outputs.
-
-
-
-### 2.4 Training Procedure
-
-Our sky cover descriptor model was trained with the following hyperparameters and configuration:
-
-- **Optimizer**: AdamW with a learning rate of $10^{-4}$ and weight decay of $10^{-4}$.
-- **Batch Configuration**: 2 batches.
-- **Training Duration**: 100 epochs for the initial model trained on manual labels only, followed by 50 epochs for the active learning enhanced model with pseudo-labels.
-- **Learning Rate Scheduler**: Reduce learning rate on plateau with a patience of 1 epoch and a factor of 0.5.
-- **Hardware**: Single NVIDIA RTX 3080 GPU with 10GB of memory.
-
-This configuration provides a good balance between performance and computational efficiency, allowing the model to learn meaningful cloud segmentation representations while maintaining training stability.
-
-
-
-### 2.5 Results
-
-The sky cover descriptor model was comprehensively evaluated using two training approaches and validation scenarios. We compare the initial model trained exclusively on manually annotated data against the active learning enhanced model that incorporates high-confidence pseudo-labels. The evaluation encompasses both manual-only validation and combined manual+pseudo-label validation datasets to assess model generalization across different data distributions.
+To understand the relationship between sky appearance and motion characteristics, we Figure 5 shows the SID space colored by optical flow magnitude values from our 45 window view scenes. This analysis reveals the distribution of motion patterns across different sky conditions and their correspondence with the learned appearance representations.
 
 <div align="center">
-    <em>Table 1: Comprehensive performance comparison across training and validation configurations. Coverage Error represents the mean absolute percentage error in estimating cloud coverage. Sky Class Error represents the classification error rate for the three-class sky condition categorization (clear, partial, overcast).</em>
+  <img src="generated/sky_image_descriptor_space/sky_image_descriptor_space_optical_flow.png" alt="SID Space with Optical Flow Magnitude" width="90%">
+  <br>
+  <em><strong>Figure 5:</strong> UMAP visualization of the Sky Image Descriptor space colored by optical flow magnitude. Dark blue represents low motion (static conditions at 0 mean optical flow magnitude value), while yellow represents high motion (dynamic cloud movement at 1.43 mean optical flow magnitude value).</em>
+  ).</em>
 </div>
 
-| Training Data | Validation Data | IoU | Dice Score | Coverage Error | Sky Class Error |
-|---------------|-----------------|-----|------------|----------------|-----------------|
-| Manual Labels Only | Manual Validation Set | 0.3632 | 0.4605 | 0.1380 | 0.2472 |
-| Manual Labels Only | Manual + Pseudo Validation Set | **0.3697** | **0.4665** | **0.0927** | **0.2840** |
-| Manual + Pseudo Labels | Manual Validation Set | 0.3905 | 0.4825 | 0.1365 | 0.2107 |
-| Manual + Pseudo Labels | Manual + Pseudo Validation Set | **0.4408** | **0.5217** | **0.0824** | **0.2114** |
+The visualization reveals clear trends in optical flow magnitude distribution across the SID space that align with the physical characteristics of different sky conditions. Clear skies in the rightmost cluster typically exhibit low optical flow values (dark blue), as these uniform conditions lack moving visual features that would generate significant motion patterns. Similarly, the upper left region of the SID space, which corresponds to uniform overcast and foggy conditions as identified in previous analysis, also shows predominantly low optical flow magnitudes due to the homogeneous, static nature of these atmospheric conditions. In contrast, the highest optical flow magnitudes appear in regions corresponding to overcast and partial sky conditions with higher visual contrast, where distinct cloud formations create clearly differentiated patterns against the sky background. These structured cloud environments generate substantial motion patterns as cloud formations move across the sky due to wind and changing atmospheric conditions, resulting in the elevated optical flow values observed in these intermediate regions of the SID space.
 
-The comprehensive evaluation reveals several important insights about the active learning approach:
+### 3.3 Reproduction Procedure
 
-1. **Consistent Improvement**: The active learning enhanced model demonstrates superior performance across all metrics compared to the baseline model trained solely on manual annotations, with IoU improvements ranging from 7.5% to 19.3%.
+**TODO**
 
-2. **Domain Generalization**: Both models exhibit better performance when evaluated on the combined validation set that includes pseudo-labeled data, suggesting improved generalization to the broader data distribution represented in the Sky Finder dataset.
 
-3. **Coverage Error Reduction**: The active learning approach significantly reduces coverage estimation errors, particularly evident in the combined validation scenario where coverage error decreases from 0.0927 to 0.0824.
-
-4. **Segmentation Quality**: The Dice score improvements indicate that the active learning approach produces more accurate cloud boundary delineation, which is crucial for precise cloud coverage quantification.
-
-
-
-### 2.6 Reproduction Procedure
-
-#### 2.6.1 Training the Initial Sky Cover Model
-
-To train the initial sky cover model on the manually annotated dataset, execute the following commands:
-
-```bash
-cd src/unet
-python unet_train.py
-```
-
-Model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline_manual.ckpt](data/models/unet/baseline_manual.ckpt).
-
-#### 2.6.2 Active Learning Enhancement
-
-To enhance the model using the active learning approach with pseudo-labels, execute the following commands:
-
-```bash
-cd src/unet
-python unet_train.py -a
-```
-
-Parameters:
-- `-a`, `--active`: Enables active learning using the previously trained model checkpoint for pseudo-label generation.
-
-The enhanced model weights will be saved in the [data/models/unet](data/models/unet) directory. Manually rename and move the best checkpoint to [data/models/unet/baseline_active.ckpt](data/models/unet/baseline_active.ckpt).
-
-#### 2.6.3 Evaluating the Sky Cover Model
-
-To evaluate the performance of the trained models, execute:
-
-```bash
-cd src/unet
-python unet_eval.py
-```
-Parameters:
-- `-a`, `--active`: (Optional) Use active learning checkpoint for evaluation instead of the baseline manual-only model.
-- `-p`, `--with-pseudo-labelling`: (Optional) Include pseudo-labeled validation data in the evaluation.
-
-
-
-## 3. Classification Head for Downstream Task
-
-The classification head serves as the final component for sky condition classification, combining the texture and cover descriptors to classify images into clear, partial, and overcast scenes. This downstream task evaluates the effectiveness of our feature extraction methods in a practical sky classification scenario.
-
-### 3.1 Dataset Preparation
-
-To create a robust classification dataset, we manually curated a subset of the Sky Finder dataset with the following preprocessing steps:
-
-1. **Manual Labeling**: We manually labeled a comprehensive subset of Sky Finder images, ensuring accurate ground truth for the three sky conditions.
-2. **Night Sky Removal**: Night sky images were systematically removed from the dataset as they introduce significant lighting variations that could confound the classification task and are less relevant for most practical applications.
-
-The final curated dataset maintains the same class distribution as reported earlier: Clear (6,335 images), Partial (6,378 images), and Overcast (8,777 images).
-
-### 3.2 Model Architecture
-
-The classification head employs a simple 3-layer fully connected network with dropout and ReLU activations between layers.
-
-The network accepts either:
-- **16-dimensional input**: Texture embeddings from the contrastive learning model
-- **17-dimensional input**: Combined texture embeddings ($16D$) + cover prediction scalar ($1D$)
-- **1-dimensional input**: Cover prediction alone for baseline comparison
-
-### 3.3 Experimental Results
-
-Our comprehensive evaluation reveals significant insights about the effectiveness of different descriptor combinations:
-
-#### 3.3.1 Performance Comparison
-
-| Configuration | Train Accuracy | Val Accuracy | Test Accuracy | Train F1 | Val F1 | Test F1 |
-|---------------|----------------|--------------|---------------|----------|--------|---------|
-| **ALL** (Texture + Cover Prediction) | 0.9133 | 0.9050 | 0.9100 | 0.9100 | 0.8956 | 0.9021 |
-| **CONTRASTIVE_ONLY** (Texture) | **0.9209** | **0.9069** | **0.9144** | **0.9170** | **0.8977** | **0.9052** |
-| **COVER_ONLY** (Cover Prediction) | 0.7681 | 0.7923 | 0.7852 | 0.0000 | 0.0000 | 0.0000 |
-
-#### 3.3.2 Key Findings
-
-1. **Contrastive Learning Superiority**: The texture descriptor derived from contrastive learning demonstrates exceptional performance, achieving the highest accuracy and F1 scores across all evaluation splits. This validates our hypothesis that contrastive learning effectively captures discriminative sky condition features.
-
-2. **Cover Prediction Limitations**: The cover prediction alone shows a critical failure mode - complete inability to classify partial sky conditions (F1 = 0.0000). The confusion matrices reveal that the model defaults to binary classification, never predicting the partial class.
-
-3. **No Synergistic Effect**: Combining texture and cover descriptors does not improve performance over using texture features alone, suggesting that the contrastive learning approach already captures the essential characteristics needed for sky classification.
-
-#### 3.3.3 Analysis of Cover Prediction Failure
-
-<div align="center">
-    <img src="generated/cover_prediction_ranges.png" alt="Cover prediction ranges" align="center" width="80%">
-    <div align="center">
-    <em>Figure 4: Distribution of cover prediction values across sky condition classes. The substantial overlap between partial and overcast classes explains the classification difficulties.</em>
-    </div>
-</div>
-
-The visualization of cover prediction ranges reveals a fundamental issue: the partial and overcast classes exhibit highly overlapping value distributions. This overlap can be attributed to several factors:
-
-1. **Texture Ambiguity**: Overcast skies often lack distinctive textures, presenting uniform gray appearances that vary primarily in brightness rather than structural patterns.
-2. **Lighting Variability**: The diverse range of lighting conditions in overcast scenes creates a continuum of cloud coverage appearances that are difficult to distinguish from partially cloudy conditions.
-
-### 3.4 Implications and Conclusions
-
-The experimental results provide several important insights for sky condition classification:
-
-1. **Contrastive Learning Effectiveness**: The superior performance of texture-only classification demonstrates that contrastive learning successfully learns implicit representations that encompass both textural and coverage characteristics without requiring explicit coverage quantification.
-
-2. **Feature Redundancy**: The lack of improvement when combining descriptors suggests that the contrastive learning approach already captures the relevant information provided by the cover prediction, making the additional descriptor redundant.
-
-3. **Practical Recommendation**: For deployment scenarios, using only the 16-dimensional texture embeddings provides the optimal balance of performance and computational efficiency.
-
-### 3.5 Reproduction Procedure
-
-#### 3.5.1 Generate Sky Finder Descriptors
-
-First, extract both texture and cover descriptors for the entire dataset:
-
-```bash
-cd src/classification
-python generate_sky_finder_descriptors.py
-```
-
-This will create a comprehensive descriptor file at [/generated/sky_finder_descriptors.json](/generated/sky_finder_descriptors.json) containing both texture embeddings and cover predictions for all images in the dataset.
-
-#### 3.5.2 Train Classification Models
-
-Train the classification head with different input configurations:
-
-```bash
-cd src/sky_class_net
-python sky_class_train.py
-python sky_class_train.py --contrastive-only
-python sky_class_train.py --cover-only
-```
-
-The model weights will be saved in the [data/models/sky_class_net](data/models/sky_class_net) directory. Manually rename and move the best checkpoint to [data/models/sky_class_net/all_baseline.ckpt](data/models/sky_class_net/all_baseline.ckpt), [data/models/sky_class_net/contrastive_only_baseline.ckpt](data/models/sky_class_net/contrastive_only_baseline.ckpt), and [data/models/sky_class_net/cover_only_baseline.ckpt](data/models/sky_class_net/cover_only_baseline.ckpt), respectively.
-
-#### 3.5.3 Evaluate Performance
-
-To generate the comprehensive evaluation metrics and confusion matrices, run:
-
-```bash
-cd src/sky_class_net
-python sky_class_eval.py
-```
-
-This will produce detailed performance metrics, confusion matrices, and visualizations for all model configurations, enabling direct comparison of the different approaches.
-
-# 4. Pipeline
-
-After these findings, we decide to only use the contrastive model and we will add other descriptors on our own initial video data. videos enable us to have temporal-based and motion-based descriptors that could improve describability of the skies.
-
-1. cloud coverage percentage
-2. Optical flow
-
-# Reproducibility TODO
-
-create gsam2 folder in src
-cd gsam2
-copy from github repository git clone https://github.com/IDEA-Research/Grounded-SAM-2?tab=readme-ov-file
-remove root grounded-sam-2 to only have the gsam2 folder directly
-cd checkpoints
-bash download_ckpts.sh
-cd gdino_checkpoints
-bash download_ckpts.sh
-cd ..
-pip install -e .
-pip install --no-build-isolation -e grounding_dino
 
 ## References
 
@@ -824,12 +548,12 @@ pip install --no-build-isolation -e grounding_dino
 
 [3] Telea, A., "An Image Inpainting Technique Based on the Fast Marching Method," Journal of Graphics Tools, Vol. 9, No. 1, 2004.
 
-[4] ImageNet TODO
+[4] Deng, J., Dong, W., Socher, R., Li, L.-J., Li, K., and Fei-Fei, L., "ImageNet: A Large-Scale Hierarchical Image Database," IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2009, pp. 248-255.
 
 [5] McInnes, L., Healy, J., and Melville, J., "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction," arXiv preprint arXiv:1802.03426, 2018.
 
 [6] Cho, Y., Karmann, C., and Andersen, M., "Perception of window views in VR: Impact of display and type of motion on subjective and physiological responses," Building and Environment, Vol. 274, 2025, 112757. https://doi.org/10.1016/j.buildenv.2025.112757
 
-[7] GSAM2 TODO
+[7] Ren, T., Liu, S., Zeng, A., Lin, J., Li, K., Cao, H., Chen, J., Huang, X., Chen, Y., Yan, F., Zeng, Z., Zhang, H., Li, F., Yang, J., Li, H., Jiang, Q., and Zhang, L., "Grounded SAM: Assembling Open-World Models for Diverse Visual Tasks," arXiv preprint arXiv:2401.14159, 2024.
 
-[8] UNet TODO
+[8] Ronneberger, O., Fischer, P., and Brox, T., "U-Net: Convolutional Networks for Biomedical Image Segmentation," International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI), Lecture Notes in Computer Science, Vol. 9351, Springer, 2015, pp. 234-241.

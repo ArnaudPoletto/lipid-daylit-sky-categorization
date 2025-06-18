@@ -220,7 +220,7 @@ def process_frame(
     )
 
     # Get optical flow magnitude if previous frame is available
-    mean_optical_flow_magnitude = None
+    optical_flow_magnitude = None
     if previous_frame is not None:
         optical_flow = get_optical_flow(
             frame=frame,
@@ -231,7 +231,7 @@ def process_frame(
         optical_flow_magnitude_values = optical_flow_magnitude.flatten()[sky_mask.flatten() > 0]
         
         if optical_flow_magnitude_values.size > 0:
-            mean_optical_flow_magnitude = float(np.mean(optical_flow_magnitude_values))
+            optical_flow_magnitude = float(np.mean(optical_flow_magnitude_values))
 
     return {
         "sky_mask": sky_mask,
@@ -239,7 +239,7 @@ def process_frame(
         "sky_image_descriptor": normalized_sky_image_descriptor.tolist(),
         "sky_class": int(sky_class),
         "sky_cover": float(sky_cover),
-        "mean_optical_flow_magnitude": mean_optical_flow_magnitude,
+        "optical_flow_magnitude": optical_flow_magnitude,
     }
 
 
@@ -336,7 +336,7 @@ def process_video(
                 "sky_image_descriptor": frame_dict.get("sky_image_descriptor"),
                 "sky_class": frame_dict.get("sky_class"),
                 "sky_cover": frame_dict.get("sky_cover"),
-                "mean_optical_flow_magnitude": frame_dict.get("mean_optical_flow_magnitude"),
+                "optical_flow_magnitude": frame_dict.get("optical_flow_magnitude"),
             }
 
             # Update to next frame
@@ -359,11 +359,16 @@ def process_video(
     
     sky_classes = [video_dict[frame]["sky_class"] for frame in video_dict]
     majority_sky_class = int(np.bincount(sky_classes).argmax())
+
+    optical_flow_magnitudes = [video_dict[frame]["optical_flow_magnitude"] for frame in video_dict]
+    optical_flow_magnitudes = [m for m in optical_flow_magnitudes if m is not None]
+    mean_optical_flow_magnitude = float(np.mean(optical_flow_magnitudes))
     
     # Add global statistics to results
     video_dict["mean_sky_image_descriptor"] = mean_sky_image_descriptor.tolist()
-    video_dict["majority_sky_class"] = majority_sky_class
     video_dict["mean_sky_cover"] = mean_sky_cover
+    video_dict["majority_sky_class"] = majority_sky_class
+    video_dict["mean_optical_flow_magnitude"] = mean_optical_flow_magnitude
 
     return video_dict
 

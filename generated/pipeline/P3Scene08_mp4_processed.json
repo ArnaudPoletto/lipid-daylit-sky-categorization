@@ -20,7 +20,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3249603807926178,
-        "mean_optical_flow_magnitude": null
+        "optical_flow_magnitude": null
     },
     "75": {
         "sky_image_descriptor": [
@@ -43,7 +43,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3234124779701233,
-        "mean_optical_flow_magnitude": 0.019445786252617836
+        "optical_flow_magnitude": 0.019445786252617836
     },
     "150": {
         "sky_image_descriptor": [
@@ -66,7 +66,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3203085958957672,
-        "mean_optical_flow_magnitude": 0.014616357162594795
+        "optical_flow_magnitude": 0.014616357162594795
     },
     "225": {
         "sky_image_descriptor": [
@@ -89,7 +89,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3260159194469452,
-        "mean_optical_flow_magnitude": 0.012275205925107002
+        "optical_flow_magnitude": 0.012275205925107002
     },
     "300": {
         "sky_image_descriptor": [
@@ -112,7 +112,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.32339954376220703,
-        "mean_optical_flow_magnitude": 0.030605550855398178
+        "optical_flow_magnitude": 0.030605550855398178
     },
     "375": {
         "sky_image_descriptor": [
@@ -135,7 +135,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3031889498233795,
-        "mean_optical_flow_magnitude": 0.016318896785378456
+        "optical_flow_magnitude": 0.016318896785378456
     },
     "450": {
         "sky_image_descriptor": [
@@ -158,7 +158,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.31972864270210266,
-        "mean_optical_flow_magnitude": 0.3929729759693146
+        "optical_flow_magnitude": 0.3929729759693146
     },
     "525": {
         "sky_image_descriptor": [
@@ -181,7 +181,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3216472566127777,
-        "mean_optical_flow_magnitude": 0.014888384379446507
+        "optical_flow_magnitude": 0.014888384379446507
     },
     "600": {
         "sky_image_descriptor": [
@@ -204,7 +204,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3142266869544983,
-        "mean_optical_flow_magnitude": 0.11847785115242004
+        "optical_flow_magnitude": 0.11847785115242004
     },
     "675": {
         "sky_image_descriptor": [
@@ -227,7 +227,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.31400445103645325,
-        "mean_optical_flow_magnitude": 0.01433200016617775
+        "optical_flow_magnitude": 0.01433200016617775
     },
     "750": {
         "sky_image_descriptor": [
@@ -250,7 +250,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.31511008739471436,
-        "mean_optical_flow_magnitude": 0.014286222867667675
+        "optical_flow_magnitude": 0.014286222867667675
     },
     "825": {
         "sky_image_descriptor": [
@@ -273,7 +273,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3122285008430481,
-        "mean_optical_flow_magnitude": 0.013892578892409801
+        "optical_flow_magnitude": 0.013892578892409801
     },
     "900": {
         "sky_image_descriptor": [
@@ -296,7 +296,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.30797916650772095,
-        "mean_optical_flow_magnitude": 0.08637578785419464
+        "optical_flow_magnitude": 0.08637578785419464
     },
     "975": {
         "sky_image_descriptor": [
@@ -319,7 +319,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.33288031816482544,
-        "mean_optical_flow_magnitude": 0.015267593786120415
+        "optical_flow_magnitude": 0.015267593786120415
     },
     "1050": {
         "sky_image_descriptor": [
@@ -342,7 +342,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.312391072511673,
-        "mean_optical_flow_magnitude": 0.01312665268778801
+        "optical_flow_magnitude": 0.01312665268778801
     },
     "1125": {
         "sky_image_descriptor": [
@@ -365,7 +365,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.299526184797287,
-        "mean_optical_flow_magnitude": 0.011543628759682178
+        "optical_flow_magnitude": 0.011543628759682178
     },
     "1200": {
         "sky_image_descriptor": [
@@ -388,7 +388,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3150295317173004,
-        "mean_optical_flow_magnitude": 0.08694484829902649
+        "optical_flow_magnitude": 0.08694484829902649
     },
     "1275": {
         "sky_image_descriptor": [
@@ -411,7 +411,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.32824838161468506,
-        "mean_optical_flow_magnitude": 0.013034732080996037
+        "optical_flow_magnitude": 0.013034732080996037
     },
     "1350": {
         "sky_image_descriptor": [
@@ -434,7 +434,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3232302963733673,
-        "mean_optical_flow_magnitude": 0.010703828185796738
+        "optical_flow_magnitude": 0.010703828185796738
     },
     "1425": {
         "sky_image_descriptor": [
@@ -457,7 +457,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.32209956645965576,
-        "mean_optical_flow_magnitude": 0.6746308207511902
+        "optical_flow_magnitude": 0.6746308207511902
     },
     "1500": {
         "sky_image_descriptor": [
@@ -480,7 +480,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3170277178287506,
-        "mean_optical_flow_magnitude": 0.09039399772882462
+        "optical_flow_magnitude": 0.09039399772882462
     },
     "1575": {
         "sky_image_descriptor": [
@@ -503,7 +503,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.31974440813064575,
-        "mean_optical_flow_magnitude": 0.015587355010211468
+        "optical_flow_magnitude": 0.015587355010211468
     },
     "1650": {
         "sky_image_descriptor": [
@@ -526,7 +526,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3242533802986145,
-        "mean_optical_flow_magnitude": 0.01012472528964281
+        "optical_flow_magnitude": 0.01012472528964281
     },
     "1725": {
         "sky_image_descriptor": [
@@ -549,7 +549,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.33775728940963745,
-        "mean_optical_flow_magnitude": 0.5397155284881592
+        "optical_flow_magnitude": 0.5397155284881592
     },
     "1800": {
         "sky_image_descriptor": [
@@ -572,7 +572,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3371751010417938,
-        "mean_optical_flow_magnitude": 0.08367186039686203
+        "optical_flow_magnitude": 0.08367186039686203
     },
     "1875": {
         "sky_image_descriptor": [
@@ -595,7 +595,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.33462777733802795,
-        "mean_optical_flow_magnitude": 0.014001835137605667
+        "optical_flow_magnitude": 0.014001835137605667
     },
     "1950": {
         "sky_image_descriptor": [
@@ -618,7 +618,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3094337582588196,
-        "mean_optical_flow_magnitude": 0.009389852173626423
+        "optical_flow_magnitude": 0.009389852173626423
     },
     "2025": {
         "sky_image_descriptor": [
@@ -641,7 +641,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3141843378543854,
-        "mean_optical_flow_magnitude": 0.012958847917616367
+        "optical_flow_magnitude": 0.012958847917616367
     },
     "2100": {
         "sky_image_descriptor": [
@@ -664,7 +664,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.29382145404815674,
-        "mean_optical_flow_magnitude": 0.05110027641057968
+        "optical_flow_magnitude": 0.05110027641057968
     },
     "2175": {
         "sky_image_descriptor": [
@@ -687,7 +687,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2984066903591156,
-        "mean_optical_flow_magnitude": 0.013657357543706894
+        "optical_flow_magnitude": 0.013657357543706894
     },
     "2250": {
         "sky_image_descriptor": [
@@ -710,7 +710,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.24682630598545074,
-        "mean_optical_flow_magnitude": 0.01469799131155014
+        "optical_flow_magnitude": 0.01469799131155014
     },
     "2325": {
         "sky_image_descriptor": [
@@ -733,7 +733,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2843773066997528,
-        "mean_optical_flow_magnitude": 0.5429624319076538
+        "optical_flow_magnitude": 0.5429624319076538
     },
     "2400": {
         "sky_image_descriptor": [
@@ -756,7 +756,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3170520067214966,
-        "mean_optical_flow_magnitude": 0.08529611676931381
+        "optical_flow_magnitude": 0.08529611676931381
     },
     "2475": {
         "sky_image_descriptor": [
@@ -779,7 +779,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2634548842906952,
-        "mean_optical_flow_magnitude": 0.012376430444419384
+        "optical_flow_magnitude": 0.012376430444419384
     },
     "2550": {
         "sky_image_descriptor": [
@@ -802,7 +802,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2834562063217163,
-        "mean_optical_flow_magnitude": 0.008946404792368412
+        "optical_flow_magnitude": 0.008946404792368412
     },
     "2625": {
         "sky_image_descriptor": [
@@ -825,7 +825,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3109932541847229,
-        "mean_optical_flow_magnitude": 0.01335802860558033
+        "optical_flow_magnitude": 0.01335802860558033
     },
     "2700": {
         "sky_image_descriptor": [
@@ -848,7 +848,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.3039493262767792,
-        "mean_optical_flow_magnitude": 0.08472922444343567
+        "optical_flow_magnitude": 0.08472922444343567
     },
     "2775": {
         "sky_image_descriptor": [
@@ -871,7 +871,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2726675271987915,
-        "mean_optical_flow_magnitude": 0.014218821190297604
+        "optical_flow_magnitude": 0.014218821190297604
     },
     "2850": {
         "sky_image_descriptor": [
@@ -894,7 +894,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.30599936842918396,
-        "mean_optical_flow_magnitude": 0.008838968351483345
+        "optical_flow_magnitude": 0.008838968351483345
     },
     "2925": {
         "sky_image_descriptor": [
@@ -917,7 +917,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.27538979053497314,
-        "mean_optical_flow_magnitude": 0.009105577133595943
+        "optical_flow_magnitude": 0.009105577133595943
     },
     "3000": {
         "sky_image_descriptor": [
@@ -940,7 +940,7 @@
         ],
         "sky_class": 2,
         "sky_cover": 0.2675221562385559,
-        "mean_optical_flow_magnitude": 0.01052841730415821
+        "optical_flow_magnitude": 0.01052841730415821
     },
     "mean_sky_image_descriptor": [
         0.3838082668257923,
@@ -960,6 +960,7 @@
         0.07202479961078341,
         -0.15171886689779235
     ],
+    "mean_sky_cover": 0.3092130746056394,
     "majority_sky_class": 2,
-    "mean_sky_cover": 0.3092130746056394
+    "mean_optical_flow_magnitude": 0.08048499377910048
 }

@@ -5,6 +5,8 @@ import json
 import glob
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from typing import List, Dict, Any, Tuple
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -92,7 +94,7 @@ def load_video_data(json_file_path: str) -> Dict[str, Any]:
         raise IOError(f"❌ Could not read {json_file_path}: {e}")
 
 
-def collect_video_data(json_file_paths: List[str]) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+def collect_video_data(json_file_paths: List[str]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str]]:
     """
     Collect sky image descriptors and metadata from all processed video files.
     
@@ -106,9 +108,11 @@ def collect_video_data(json_file_paths: List[str]) -> Tuple[np.ndarray, np.ndarr
         Tuple containing:
             - np.ndarray: Array of mean sky image descriptors with shape (n_videos, descriptor_dim).
             - np.ndarray: Array of majority sky classes with shape (n_videos,).
+            - np.ndarray: Array of mean optical flow magnitudes with shape (n_videos,).
             - List[str]: List of video names extracted from filenames.
     """
     all_sky_image_descriptors = []
+    all_optical_flows = []
     all_sky_classes = []
     video_names = []
 
@@ -120,9 +124,11 @@ def collect_video_data(json_file_paths: List[str]) -> Tuple[np.ndarray, np.ndarr
         
         # Extract sky image descriptor and class
         mean_sky_image_descriptor = np.array(video_data["mean_sky_image_descriptor"])
+        mean_optical_flow_magnitude = np.array(video_data["mean_optical_flow_magnitude"])
         majority_sky_class = video_data["majority_sky_class"]
         
         all_sky_image_descriptors.append(mean_sky_image_descriptor)
+        all_optical_flows.append(mean_optical_flow_magnitude)
         all_sky_classes.append(majority_sky_class)
 
         # Extract video name from filename
@@ -133,6 +139,7 @@ def collect_video_data(json_file_paths: List[str]) -> Tuple[np.ndarray, np.ndarr
     return (
         np.array(all_sky_image_descriptors), 
         np.array(all_sky_classes), 
+        np.array(all_optical_flows),
         video_names
     )
 
@@ -196,11 +203,44 @@ def get_sky_class_colors(sky_classes: np.ndarray) -> List[str]:
     
     return [color_map[sky_class] for sky_class in sky_classes]
 
+def get_optical_flow_colors(optical_flows: np.ndarray) -> List[str]:
+    """
+    Map optical flow magnitudes to colors using a matplotlib colormap.
+    
+    This function creates a color mapping where lower optical flow values are mapped
+    to darker colors and higher values to brighter colors using the 'plasma' colormap.
+    The mapping uses the minimum value as 0 and scales to the maximum value in the dataset.
+    
+    Args:
+        optical_flows (np.ndarray): Array of optical flow magnitudes.
+
+    Returns:
+        List[str]: List of hex color codes corresponding to each optical flow magnitude.
+    """
+    if len(optical_flows) == 0:
+        return []
+    
+    min_flow = 0
+    max_flow = np.max(optical_flows)
+    print(f"📊 Optical flow range: {min_flow} to {max_flow}.")
+    
+    # Handle edge case where all values are the same
+    if max_flow == min_flow:
+        return ["#440154"] * len(optical_flows)
+    
+    normalized_flows = (optical_flows - min_flow) / (max_flow - min_flow)
+    cmap = plt.cm.plasma
+    colors = [mcolors.rgb2hex(cmap(norm_flow)) for norm_flow in normalized_flows]
+    
+    return colors
+
 
 def plot_all_videos(
     video_sky_image_descriptors: np.ndarray,
     video_sky_classes: np.ndarray,
+    video_optical_flows: np.ndarray,
     video_names: List[str],
+    color_by: str
 ) -> None:
     """
     Plot all videos' sky image descriptors in the UMAP space.
@@ -212,7 +252,9 @@ def plot_all_videos(
     Args:
         video_sky_image_descriptors (np.ndarray): Array of video sky image descriptors.
         video_sky_classes (np.ndarray): Array of sky classes for each video.
+        video_optical_flows (np.ndarray): Array of mean optical flow magnitudes for each video.
         video_names (List[str]: List of video names for labeling.
+        color_by (str): Method to color the points in the visualization.
     """
     print("▶️  Generating UMAP visualization...")
 
@@ -231,8 +273,13 @@ def plot_all_videos(
     )
 
     # Format video labels and colors
-    video_labels = format_video_labels(video_names)
-    video_colors = get_sky_class_colors(video_sky_classes)
+    oos_labels = format_video_labels(video_names)
+
+    if color_by == "sky_type":
+        oos_colors = get_sky_class_colors(video_sky_classes)
+    elif color_by == "optical_flow":
+        oos_colors = get_optical_flow_colors(video_optical_flows)
+
 
     # Create visualization
     plot_sky_finder_sky_image_descriptors(
@@ -240,8 +287,8 @@ def plot_all_videos(
         sky_finder_sky_image_descriptors=sky_finder_descriptors,
         colors=sky_finder_colors,
         oos_sky_image_descriptors=video_sky_image_descriptors,
-        oos_colors=video_colors,
-        oos_labels=video_labels,
+        oos_colors=oos_colors,
+        oos_labels=oos_labels,
     )
     
     print("✅ Visualization complete.")
@@ -266,6 +313,15 @@ def parse_args() -> argparse.Namespace:
         help="Override path to the generated pipeline directory (default: use config value).",
     )
 
+    parser.add_argument(
+        "-c",
+        "--color-by",
+        type=str,
+        choices=["sky_type", "optical_flow"],
+        default="sky_type",
+        help="Coloring method for visualization: 'sky_type' for semantic labels, 'optical_flow' for optical flow analysis (default: sky_type).",
+    )
+
     return parser.parse_args()
 
 
@@ -275,13 +331,16 @@ def main() -> None:
     """
     args = parse_args()
     
-    print("▶️  Starting video sky image descriptor visualization...")
-    
     # Override pipeline path if provided
     if args.pipeline_path:
         global GENERATED_PIPELINE_PATH
         GENERATED_PIPELINE_PATH = args.pipeline_path
         print(f"📋 Using custom pipeline path: {os.path.abspath(GENERATED_PIPELINE_PATH)}")
+
+    print("▶️  Starting video sky image descriptor visualization...")
+    print(f"📋 Configuration:")
+    print(f"   • Coloring method: {args.color_by}")
+    print(f"   • Pipeline path: {GENERATED_PIPELINE_PATH}")
 
     try:
         # Get all processed video files
@@ -289,14 +348,16 @@ def main() -> None:
         print(f"✅ Found {len(json_file_paths)} processed video file(s).")
 
         # Collect sky image descriptors and metadata
-        video_descriptors, video_classes, video_names = collect_video_data(json_file_paths)
+        video_sky_image_descriptors, video_sky_classes, video_optical_flows, video_names = collect_video_data(json_file_paths)
         print(f"✅ Loaded sky image descriptors from all videos.")
 
         # Generate visualization
         plot_all_videos(
-            video_sky_image_descriptors=video_descriptors,
-            video_sky_classes=video_classes,
+            video_sky_image_descriptors=video_sky_image_descriptors,
+            video_sky_classes=video_sky_classes,
+            video_optical_flows=video_optical_flows,
             video_names=video_names,
+            color_by=args.color_by
         )
 
     except Exception as e:
