@@ -68,7 +68,7 @@ This lightweight classification head serves as a downstream task to validate tha
 
 We employ the Normalized Temperature-scaled Cross Entropy (NT-Xent) loss, which is formulated as:
 
-$$L = -\log\frac{\exp(\text{sim}(z_i, z_j)/\tau)}{\sum_{k=1}^{2N}\mathbf{1}_{[k \neq i]}\exp(\text{sim}(z_i, z_k)/\tau)}$$
+$$\mathcal{L} = -\log\frac{\exp(\text{sim}(z_i, z_j)/\tau)}{\sum_{k=1}^{2N}\mathbf{1}_{[k \neq i]}\exp(\text{sim}(z_i, z_k)/\tau)}$$
 
 Where:
 - $z_i$ and $z_j$ are normalized descriptors of two augmented views of the same image.
@@ -416,7 +416,7 @@ This auxiliary branch provides additional supervisory signal during training, en
 
 The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
 
-$$\mathcal{L}\_{\text{total}} = 0.5 \cdot \mathcal{L}\_{F} + 0.5 \cdot \mathcal{L}\_{D} + 0.1 \cdot \mathcal{L}\_{B}$$
+$$\mathcal{L} = 0.5 \cdot \mathcal{L}\_{F} + 0.5 \cdot \mathcal{L}\_{D} + 0.1 \cdot \mathcal{L}\_{B}$$
 
 The focal loss ($\mathcal{L}_{F}$) addresses class imbalance and focuses learning on difficult examples:
 
@@ -426,7 +426,7 @@ Where $p_t$ is the predicted probability for the true class, $\alpha=0.5$ balanc
 
 The dice loss ($\mathcal{L}_{D}$) optimizes spatial overlap between predicted and ground truth segmentations:
 
-$$\mathcal{L}_{D} = 1 - \frac{2\sum_{i}^{N}p_i g_i}{\sum_{i}^{N}p_i^2 + \sum_{i}^{N}g_i^2 + \epsilon}$$
+$$\mathcal{L}\_{D} = 1 - \frac{2\sum\_{i}^{N}p_i g_i}{\sum\_{i}^{N}p_i^2 + \sum\_{i}^{N}g_i^2 + \epsilon}$$
 
 Where $p_i$ and $g_i$ are predicted and ground truth probabilities for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ ensures numerical stability. This loss is particularly effective for segmentation tasks as it directly optimizes the overlap metric used for evaluation.
 
