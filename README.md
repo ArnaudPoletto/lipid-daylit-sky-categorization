@@ -348,12 +348,11 @@ To project new sky videos into the SID space, follow these steps:
 
     ```bash
     cd src/pipeline
-    python plot_pipeline_all.py [-p <pipeline-path>]
+    python plot_pipeline_all.py -c sky_type [-p <pipeline-path>]
     ```
 
     **Parameters:**
     - `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
-
 
 
 ## 2. Cloud Coverage
@@ -585,7 +584,30 @@ The visualization reveals clear trends in optical flow magnitude distribution ac
 
 ### 3.3 Reproduction Procedure
 
-**TODO**
+#### 3.6.1 Generating Sky Finder Descriptors
+
+If not already done, generate the descriptors for the Sky Finder dataset by executing the following commands:
+
+```bash
+cd src/pipeline
+python generate_sky_finder_descriptors.py [-w <workers>] [-f]
+```
+
+**Parameters:**
+- `-w`, `--n-workers`: (Optional, default: 1) Number of workers for data loading.
+- `-f`, `--force`: (Optional, default: false) Force overwrite existing descriptor file.
+
+The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
+
+#### 3.6.2 Generating Scene Descriptors
+
+### 3.6.3 Plotting the SID Space with New Data Optical Flow
+
+
+python plot_pipeline_all.py -c optical_flow [-p <pipeline-path>]
+
+**Parameters:**
+    - `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
 
 
 
