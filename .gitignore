@@ -5,29 +5,9 @@ src/unet/wandb/
 src/sky_class_net/wandb/
 
 data/videos.zip
-
-data/TODO
-
-
-
-
-
-
-
-
-data/models/contrastive_net
-data/models/unet
-data/models/sky_class_net
-data/sky_finder/train/
-data/sky_finder/test/
-data/sky_finder/val/
-data/sky_finder/archives/
-data/sky_finder/extracted/
-data/sky_finder/images/
-data/sky_finder_cover/
+data/models
+data/sky_finder
 data/sky_finder_active_learning
+data/sky_finder_cover
 
 src/gsam2/
-
-generated/embeddings.json
-generated/sky_finder_descriptors.json

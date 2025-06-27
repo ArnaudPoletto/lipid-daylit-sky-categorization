@@ -47,9 +47,8 @@ This repository provides complete implementations of all three sky descriptors, 
 To set up the environment, run the following commands:
 
 ```bash
-conda create -n daylit-sky python=3.11.11
+conda env create -f environment.yml
 conda activate daylit-sky
-pip install -r requirements.txt
 ```
 
 ### 2.2 Weights & Biases Setup
