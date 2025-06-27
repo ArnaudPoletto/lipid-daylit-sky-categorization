@@ -18,16 +18,6 @@ The Sky Finder dataset comprises high-resolution outdoor images captured across 
 
 For experimental evaluation, the dataset is divided into training, validation, and test sets containing 12,894 (60%), 4,298 (20%), and 4,298 (20%) images, respectively.
 
-#### 1.1.2 Sky Finder Cover Dataset
-
-The Sky Finder Cover Dataset is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
-
-The dataset was created through a meticulous annotation process:
-1. **Selection**: Representative images were selected from each sky condition category to ensure diversity.
-2. **Manual Segmentation**: Annotators created pixel-precise binary masks, where each pixel is labeled as either overcast (white), partially covered (gray) or clear sky/ground (0).
-
-For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively.
-
 #### 1.1.2 Pair Generation for Contrastive Learning
 
 Our contrastive learning framework relies on creating meaningful sample pairs:
@@ -267,7 +257,7 @@ python generate_sky_finder_descriptors.py [-w <workers>] [-f]
 - `-w`, `--n-workers`: (Optional, default: 1) Number of workers for data loading.
 - `-f`, `--force`: (Optional, default: false) Force overwrite existing descriptor file.
 
-The generated descriptors will be saved in the `generated/sky_finder_descriptors.json` file.
+The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
 
 #### 1.7.4 Plotting the SID Space
 
@@ -279,7 +269,7 @@ python plot_sky_image_descriptor_space.py [-c <color-by>] [-k <n-clusters>] [-i 
 ```
 
 **Parameters:**
-- `-c`, `--color-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default) and `cluster`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters, respectively.
+- `-c`, `--color-by`: (Optional, default is `sky_type`) Specifies the grouping type for the plot. Options include `sky_type` (default), `cluster` and `cloud_cover`, which groups the descriptors by their sky condition type or by clustering them into $k$ clusters or by cloud coverage percentage, respectively.
 - `-k`, `--n-clusters`: (Optional, default is 3) Specifies the number of clusters to use when grouping by cluster type. This parameter is only relevant when `--color-by` is set to `cluster`.
 - `-i`, `--interactive`: (Optional, default is false) Enables interactive mode for the plot, allowing you to hover over points to see images.
 
@@ -368,7 +358,7 @@ To project new sky videos into the SID space, follow these steps:
 
 ## 2. Cloud Coverage
 
-The cloud coverage descriptor provides a quantitative measure of sky conditions by estimating the percentage of sky pixels covered by clouds. This descriptor leverages deep learning-based segmentation to distinguish between clear sky and cloud regions, outputting a continuous value between 0 (completely clear) and 1 (completely overcast). Unlike categorical classification approaches, this regression-based method captures the nuanced gradations in cloud coverage that characterize real-world sky conditions.
+The cloud coverage (CC) model provides a quantitative measure of sky conditions through pixel-level segmentation and aggregation. Using a U-Net architecture with a ResNet50 encoder backbone, the model performs dense prediction to estimate the proportion of cloud coverage for each sky pixel, outputting probability values between 0 and 1. The final cloud coverage percentage is computed by taking the spatial average of all sky pixel predictions, resulting in a single continuous value representing the overall cloud coverage for the entire sky region.
 
 
 
@@ -378,18 +368,15 @@ The cloud coverage descriptor provides a quantitative measure of sky conditions 
 
 In this repository, we introduce the Sky Finder Cover Dataset, which is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
 
-The dataset was created through a meticulous annotation process:
-- **Selection:** Representative images were selected from each sky condition category to ensure diversity across weather conditions, times of day, and cloud formations.
-- **Manual Segmentation:** Annotators created pixel-precise masks, where each pixel is labeled as either cloud-covered (white), partially covered (gray) or clear sky/ground (black). Special attention was given to cloud boundaries and transitional regions to ensure accurate coverage estimation.
+The dataset was created through a meticulous annotation process where representative images were selected from each sky condition category to ensure diversity across weather conditions, times of day, and cloud formations. Annotators then created pixel-precise masks, where each pixel is labeled as either cloud-covered (white), partially covered (gray) or clear sky/ground (black). Special attention was given to cloud boundaries and transitional regions to ensure accurate coverage estimation.
 
 For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively, maintaining representative distributions across all sky condition classes.
 
 #### 2.1.2 Sky Finder Active Dataset
 
-To address the limited size of manually annotated data, we implement an active learning framework that leverages high-confidence pseudo-labels from the broader Sky Finder dataset:
+To address the limited size of manually annotated data, we implement an active learning framework that leverages high-confidence pseudo-labels from the broader Sky Finder dataset.
 
-- **Initial Model Training:** A cloud coverage model was first trained on the manually annotated Sky Finder Cover Dataset using the architecture and training procedure described in Sections 2.2 and 2.4.
-- **Pseudo-Label Generation:** The trained model was systematically applied to unlabeled images from the full Sky Finder Dataset, where prediction uncertainty was quantified using pixel-wise entropy measurements across the segmentation output. Through this uncertainty quantification process, only good predictions exhibiting low entropy were selected as pseudo-labels, ensuring quality control through confidence-based filtering. This threshold-based selection mechanism effectively retained only the most confident predictions for training augmentation, maintaining annotation quality while significantly expanding the available training data.
+A cloud coverage model was first trained on the manually annotated Sky Finder Cover Dataset using the architecture and training procedure described in Sections 2.2 and 2.4. The trained model was then systematically applied to unlabeled images from the full Sky Finder Dataset, where prediction uncertainty was quantified using pixel-wise entropy measurements across the segmentation output. Through this uncertainty quantification process, only predictions exhibiting low entropy were selected as pseudo-labels, ensuring quality control through confidence-based filtering. This threshold-based selection mechanism effectively retained only the most confident predictions for training augmentation, maintaining annotation quality while significantly expanding the available training data.
 
 This active learning approach expands the training set with 359 high-confidence pseudo-labeled images and the validation set with 128 additional pseudo-labeled images, significantly increasing the available training data while maintaining annotation quality through automated confidence filtering.
 
@@ -397,7 +384,7 @@ This active learning approach expands the training set with 359 high-confidence 
 
 ### 2.2 Model Architecture
 
-The cloud coverage descriptor employs a U-Net [8] architecture with a ResNet50 backbone pretrained on ImageNet serving as the feature encoder. This encoder-decoder structure is specifically designed for dense prediction tasks, making it well-suited for pixel-level cloud segmentation.
+The CC model employs a U-Net [8] architecture with a ResNet50 backbone pretrained on ImageNet serving as the feature encoder. This encoder-decoder structure is specifically designed for dense prediction tasks, making it well-suited for pixel-level cloud segmentation.
 
 **Encoder (ResNet50 Backbone):** The ResNet50 encoder progressively downsamples input images while extracting hierarchical features at multiple scales. The pretrained weights provide robust low-level feature representations that transfer effectively to sky imagery, capturing edges, textures, and structural patterns essential for cloud boundary detection.
 
@@ -426,7 +413,7 @@ Where $p_t$ is the predicted probability for the true class, $\alpha=0.5$ balanc
 
 The dice loss ($\mathcal{L}_{D}$) optimizes spatial overlap between predicted and ground truth segmentations:
 
-$$\mathcal{L}\_{D} = 1 - \frac{2\sum\_{i}^{N}p_i g_i}{\sum\_{i}^{N}p_i^2 + \sum\_{i}^{N}g_i^2 + \epsilon}$$
+$$\mathcal{L}\_{D} = 1 - \frac{2\sum\_{i=1}^{N}p_i g_i}{\sum\_{i=1}^{N}p_i^2 + \sum\_{i=1}^{N}g_i^2 + \epsilon}$$
 
 Where $p_i$ and $g_i$ are predicted and ground truth probabilities for pixel $i$, $N$ is the total number of pixels, and $\epsilon$ ensures numerical stability. This loss is particularly effective for segmentation tasks as it directly optimizes the overlap metric used for evaluation.
 
@@ -501,7 +488,69 @@ The observed performance disparity in uniform overcast conditions can be attribu
 
 ### 2.6 Reproduction Procedure
 
-**TODO**
+#### 2.6.1 Training and Evaluating the CC Model
+
+To train the cloud coverage model and evaluate its performance:
+
+```bash
+cd src/unet
+python unet_train.py [-e <epochs>] [-b <batch-size>] [-w <workers>] [--evaluation-steps <evaluation-steps>] [--learning-rate <learning-rate>] [--weight-decay <weight-decay>] [--bottleneck-dropout <bottleneck-dropout>] [--decoder-dropout <decoder-dropout>] [--project-name <project-name>] [--experiment-name <experiment-name>] [--accelerator <accelerator>] [--devices <devices>] [--precision <precision>] [--save-top-k <save-top-k>] [-a] [--no-pretrained]
+```
+
+**Parameters:**
+- `-e`, `--epochs`: (Optional, default: 100) Number of training epochs.
+- `-b`, `--batch-size`: (Optional, default: 2) Batch size for training.
+- `-w`, `--n-workers`: (Optional, default: 8) Number of data loading workers.
+- `--evaluation-steps`: (Optional, default: 40) Number of steps between validation runs.
+- `--learning-rate`: (Optional, default: 1e-4) Learning rate for optimization.
+- `--weight-decay`: (Optional, default: 1e-4) Weight decay for regularization.
+- `--bottleneck-dropout`: (Optional, default: 0.0) Dropout rate for bottleneck layer.
+- `--decoder-dropout`: (Optional, default: 0.0) Dropout rate for decoder layers.
+- `--project-name`: (Optional, default: "lipid") W&B project name.
+- `--experiment-name`: (Optional, default: auto-generated timestamp) Custom experiment name.
+- `--accelerator`: (Optional, default: "gpu") Hardware accelerator to use (cpu/gpu/tpu).
+- `--devices`: (Optional, default: -1) Number of devices to use (-1 for all available).
+- `--precision`: (Optional, default: 32) Training precision (16/32).
+- `--save-top-k`: (Optional, default: 3) Number of best checkpoints to save.
+- `-a`, `--active`: (Optional) Use active learning with pseudo-labelling.
+- `--no-pretrained`: (Optional) Use randomly initialized backbone instead of pretrained.
+
+Model weights will be saved in the `data/models/unet` directory. If you want to use your own model for further steps, manually rename and move the best checkpoint to `data/models/unet/baseline_manual.ckpt` (for manual training) or `data/models/unet/baseline_active.ckpt` (for active learning). To evaluate the trained cloud coverage model:
+
+```bash
+cd src/unet
+python unet_eval.py [--active] [--with-pseudo-labelling]
+```
+
+The evaluation results will demonstrate the model's effectiveness at pixel-level cloud segmentation and coverage estimation, providing continuous IoU, Dice coefficient, coverage error, and sky class prediction metrics.
+
+#### 2.6.2 Generating Sky Finder Descriptors
+
+If not already done, generate the descriptors for the Sky Finder dataset by executing the following commands:
+
+```bash
+cd src/pipeline
+python generate_sky_finder_descriptors.py [-w <workers>] [-f]
+```
+
+**Parameters:**
+- `-w`, `--n-workers`: (Optional, default: 1) Number of workers for data loading.
+- `-f`, `--force`: (Optional, default: false) Force overwrite existing descriptor file.
+
+The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
+
+#### 2.6.3 Plotting the SID Space with Cloud Coverage
+
+cd src/pipeline
+python .\plot_sky_image_descriptor_space.py -c cloud_cover
+
+```bash
+cd src/pipeline
+python plot_sky_image_descriptor_space.py color [-i <interactive>]
+```
+
+**Parameters:**
+- `-i`, `--interactive`: (Optional, default is false) Enables interactive mode for the plot, allowing you to hover over points to see images.
 
 
 
