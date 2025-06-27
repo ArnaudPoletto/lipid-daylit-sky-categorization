@@ -10,12 +10,34 @@ prerequisites:
 
 To set up the environment, follow these steps:
 
-### 0.2 Research Data
+### 0.2 Data Setup
 
-TODO
-Most data used is publicly available. The only data that is not publicly available is the collected scenes from the EPFL campus. Contact arnaud.poletto@epfl.ch for any questions.
+The repository requires several datasets for training and evaluation. Most data used is publicly available, with the exception of collected scenes from the EPFL campus.
 
-for avaiable data, unzip the .zip archives file in the data directory of the repository. namely models.zip, sky_finder.zip, sky_finder_active_learning.zip, sky_finder_cover.zip
+#### Required Data Files
+
+Extract the following archive files in the `data/` directory of the repository:
+
+- `models.zip` - Pre-trained model checkpoints
+- `sky_finder.zip` - Sky Finder dataset with manual annotations  
+- `sky_finder_active_learning.zip` - Active learning pseudo-labeled data
+- `sky_finder_cover.zip` - Cloud coverage segmentation dataset
+
+#### Alternative Data Sources
+
+For the EPFL campus scenes (not publicly available), contact arnaud.poletto@epfl.ch for access. Alternatively, you can substitute your own video data, as this framework is specifically designed to be adaptable to different datasets and use cases.
+
+#### Verification
+
+After extraction, your `data/` directory structure should contain:
+```
+data/
+├── models/
+├── sky_finder/
+├── sky_finder_active_learning/
+├── sky_finder_cover/
+└── ...
+```
 
 ## 1. Sky Image Descriptor
 
