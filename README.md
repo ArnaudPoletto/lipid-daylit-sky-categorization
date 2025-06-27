@@ -384,20 +384,23 @@ To project new sky videos into the SID space, follow these steps:
 2. **Preparte the manually annotated masks:** If you have manually annotated masks for the new videos, place them in the [data/videos/masks](data/videos/masks) directory. This step is optional, typically used for datasets where specific regions of interest need to be focused on.
 
 3. **Clone the Grounded Segment Anything 2 (GSAM2) repository:**
-  ```bash
-  cd src
-  git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
-  ```
 
-  Then, rename the cloned directory to `gsam2` and download the pretrained checkpoints:
-  ```bash
-  cd gsam2/checkpoints
-  bash download_ckpts.sh
-  ```
-  ```bash
-  cd gsam2/gdino_checkpoints
-  bash download_ckpts.sh
-  ```
+    ```bash
+    cd src
+    git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
+    ```
+
+    Then, rename the cloned directory to `gsam2` and download the pretrained checkpoints:
+
+    ```bash
+    cd gsam2/checkpoints
+    bash download_ckpts.sh
+    ```
+    
+    ```bash
+    cd gsam2/gdino_checkpoints
+    bash download_ckpts.sh
+    ```
 
   See the [GSAM2 repository](https://github.com/IDEA-Research/Grounded-SAM-2) for more details on the repository setup.
 
