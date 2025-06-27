@@ -1,3 +1,7 @@
+## -1. Introduction
+
+## 0. Setup Instructions
+
 ## 1. Sky Image Descriptor
 
 The sky image descriptor (SID) leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We manually categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful sky image representations from the diverse sky conditions present in the dataset.
