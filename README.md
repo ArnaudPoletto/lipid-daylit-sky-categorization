@@ -1,8 +1,10 @@
-## -1. Introduction
+# Daylit Sky Categorization Using Image Processing: A Comparison with CIE Standards
 
-## 0. Setup Instructions
+## 1. Introduction
 
-### 0.1 Environment Setup
+## 2. Setup Instructions
+
+### 2.1 Environment Setup
 TODO
 prerequisites:
   conda 24.9.2
@@ -10,7 +12,7 @@ prerequisites:
 
 To set up the environment, follow these steps:
 
-### 0.2 Data Setup
+### 2.2 Data Setup
 
 The repository requires several datasets for training and evaluation. Most data used is publicly available, with the exception of collected scenes from the EPFL campus.
 
@@ -26,8 +28,6 @@ Extract the following archive files in the `data/` directory of the repository:
 #### Alternative Data Sources
 
 For the EPFL campus scenes (not publicly available), contact arnaud.poletto@epfl.ch for access. Alternatively, you can substitute your own video data, as this framework is specifically designed to be adaptable to different datasets and use cases.
-
-#### Verification
 
 After extraction, your `data/` directory structure should contain:
 ```
