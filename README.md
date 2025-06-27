@@ -2,7 +2,37 @@
 
 ## 1. Introduction
 
-TODO
+Daylight is an inherently complex and dynamic resource that continuously shapes our built environment through its spectral composition, intensity, and directional structure. Accurate characterization of sky conditions underpins virtually every aspect of contemporary lighting research, from circadian-stimulus metrics and glare probability assessments to façade aperture sizing and adaptive shading algorithms. Without standardized methods for describing daylit skies, results from field studies, laboratory experiments, and computational simulations remain difficult to compare, aggregate, or apply in practice.
+
+The Commission Internationale de l'Éclairage (CIE) has established comprehensive standards for sky classification, culminating in the fifteen-type CIE Standard General Sky (S 011/E:2003). While this system provides the theoretical foundation for photometric research, its practical implementation faces significant challenges. Translating real sky conditions into the five CIE coefficients requires sophisticated instrumentation and complex fitting procedures that are often unreliable with partial-view imagery or consumer-grade equipment. Consequently, most practical workflows collapse the fifteen-type system into simplified three-category classifications: clear, partial (partly cloudy), and overcast conditions.
+
+This repository presents a comprehensive framework for daylit sky categorization using modern image processing techniques, explicitly designed to bridge the gap between CIE theoretical standards and practical implementation constraints. Our approach leverages three complementary methods to characterize sky conditions from standard digital imagery:
+
+### Key Components
+
+**Sky Image Descriptors (SID)**: A contrastive learning-based approach that extracts 16-dimensional representations capturing semantic sky characteristics. Using a ResNet50 backbone trained on carefully curated sky imagery, the SID model learns meaningful embeddings that naturally cluster similar sky conditions without explicit supervision.
+
+**Cloud Coverage (CC) Estimation**: A U-Net architecture with ResNet50 encoder that performs pixel-level segmentation to quantify cloud coverage percentage. The model combines manual annotations with active learning using high-confidence pseudo-labels to achieve robust performance across diverse atmospheric conditions.
+
+**Optical Flow Analysis**: Temporal motion analysis that captures dynamic characteristics of sky conditions by quantifying cloud movement patterns between consecutive video frames, providing insights into atmospheric dynamics impossible to obtain from static images alone.
+
+### Research Contributions
+
+This framework addresses four critical objectives in daylight research:
+
+1. **Standardized Methodology**: Establishes a transparent, straightforward procedure using real-world scenes captured by standard digital cameras to convert image data into standardized, image-processing based parameters compatible with CIE principles.
+
+2. **Broad Applicability**: Enables consistent comparisons across studies and laboratories, including those relying on partial-dome or façade views, without requiring specialized luminance measurement equipment.
+
+3. **Modern Integration**: Presents a unified workflow that embraces contemporary camera technologies, HDR imaging, and deep learning approaches while remaining anchored to established CIE sky-type principles.
+
+4. **Practical Implementation**: Broadens applications by adapting meteorological methodologies to concise, image-friendly metrics suitable for building-control systems, simulation studies, and post-occupancy evaluations.
+
+By resolving ambiguities in parameter acquisition and offering a rigorously defined yet operationally lightweight alternative to full fifteen-type CIE classification, this work equips lighting researchers with a standardized, scalable, and CIE-compatible toolset for daylit-sky characterization. The framework is specifically designed to handle scenarios where traditional coefficient-fitting methods are impracticable while maintaining scientific rigor and reproducibility.
+
+### Repository Structure
+
+This repository provides complete implementations of all three sky descriptors, comprehensive datasets for training and evaluation, and detailed reproduction procedures for all experimental results. The modular design allows researchers to use individual components or the complete integrated pipeline depending on their specific requirements and available data types.
 
 
 
