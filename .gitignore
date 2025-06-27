@@ -1,9 +1,20 @@
+*.pyc
+
 src/contrastive_net/wandb/
 src/unet/wandb/
 src/sky_class_net/wandb/
-generated/tsne_interactive_plot.html
+
+data/videos.zip
 
 data/TODO
+
+
+
+
+
+
+
+
 data/models/contrastive_net
 data/models/unet
 data/models/sky_class_net
@@ -21,5 +32,3 @@ src/gsam2/
 
 generated/embeddings.json
 generated/sky_finder_descriptors.json
-
-*.pyc

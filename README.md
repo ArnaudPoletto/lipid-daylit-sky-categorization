@@ -2,6 +2,21 @@
 
 ## 0. Setup Instructions
 
+### 0.1 Environment Setup
+TODO
+prerequisites:
+  conda 24.9.2
+  python 3.11.11
+
+To set up the environment, follow these steps:
+
+### 0.2 Research Data
+
+TODO
+Most data used is publicly available. The only data that is not publicly available is the collected scenes from the EPFL campus. Contact arnaud.poletto@epfl.ch for any questions.
+
+for avaiable data, unzip the `data.zip` file in the root directory of the repository. This will create a `data` folder containing all the necessary datasets and models.
+
 ## 1. Sky Image Descriptor
 
 The sky image descriptor (SID) leverages the Sky Finder dataset [1], which contains a rich variety of sky imagery. We manually categorized the 20 most relevant scenes into three distinct classes: clear, partial, and overcast, based on sky conditions. Using this classified data, we trained a ResNet50 backbone [2] with a multi-layer perceptron head. The model was trained on a contrastive learning task, enabling it to extract meaningful sky image representations from the diverse sky conditions present in the dataset.
