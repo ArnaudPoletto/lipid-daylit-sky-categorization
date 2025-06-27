@@ -2,15 +2,23 @@
 
 ## 1. Introduction
 
+TODO
+
 ## 2. Setup Instructions
 
 ### 2.1 Environment Setup
-TODO
-prerequisites:
-  conda 24.9.2
-  python 3.11.11
 
-To set up the environment, follow these steps:
+**Prerequisites:**
+- Conda 24.9.2 or higher
+- Python 3.11.11
+
+To set up the environment, run the following commands:
+
+```bash
+conda create -n daylit-sky python=3.11.11
+conda activate daylit-sky
+pip install -r requirements.txt
+```
 
 ### 2.2 Data Setup
 
@@ -33,9 +41,21 @@ After extraction, your `data/` directory structure should contain:
 ```
 data/
 ├── models/
+├──── contrastive_net/
+├──── sky_class_net/  
+├──── unet/
+|
 ├── sky_finder/
+├──── masks/
+├──── category_mapping.json
+|
 ├── sky_finder_active_learning/
+├──── train/
+├──── val/
+|
 ├── sky_finder_cover/
+├──── train/
+├──── val/
 └── ...
 ```
 
