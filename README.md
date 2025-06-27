@@ -381,7 +381,7 @@ To project new sky videos into the SID space, follow these steps:
 
 1. **Prepare the new video dataset:** Ensure the new sky videos are in a compatible format (e.g., MP4, AVI, MOV, MKV) and stored in the [data/videos/processed](data/videos/processed) directory. The videos should contain visible sky regions for accurate descriptor extraction.
 
-2. **Preparte the manually annotated masks:** If you have manually annotated masks for the new videos, place them in the [data/videos/masks](data/videos/masks) directory. This step is optional, typically used for datasets where specific regions of interest need to be focused on.
+2. **Prepare the manually annotated masks:** If you have manually annotated masks for the new videos, place them in the [data/videos/masks](data/videos/masks) directory. This step is optional, typically used for datasets where specific regions of interest need to be focused on.
 
 3. **Clone the Grounded Segment Anything 2 (GSAM2) repository:**
 
@@ -396,7 +396,7 @@ To project new sky videos into the SID space, follow these steps:
     cd gsam2/checkpoints
     bash download_ckpts.sh
     ```
-    
+
     ```bash
     cd gsam2/gdino_checkpoints
     bash download_ckpts.sh
@@ -444,15 +444,15 @@ To project new sky videos into the SID space, follow these steps:
     - `-p`, `--pipeline-path`: (Optional, default: [generated/pipeline](generated/pipeline)) Path to the directory containing the generated descriptors.
 
 
-## 2. Cloud Coverage
+## 4. Cloud Coverage
 
 The cloud coverage (CC) model provides a quantitative measure of sky conditions through pixel-level segmentation and aggregation. Using a U-Net architecture with a ResNet50 encoder backbone, the model performs dense prediction to estimate the proportion of cloud coverage for each sky pixel, outputting probability values between 0 and 1. The final cloud coverage percentage is computed by taking the spatial average of all sky pixel predictions, resulting in a single continuous value representing the overall cloud coverage for the entire sky region.
 
 
 
-### 2.1 Datasets
+### 4.1 Datasets
 
-#### 2.1.1 Sky Finder Cover Dataset
+#### 4.1.1 Sky Finder Cover Dataset
 
 In this repository, we introduce the Sky Finder Cover Dataset, which is a manually annotated subset of the Sky Finder Dataset with pixel-level cloud segmentation masks. This carefully curated dataset maintains the same classification schema (clear, partial, and overcast) as the original Sky Finder Dataset, providing high-quality ground truth for cloud segmentation tasks.
 
@@ -460,7 +460,7 @@ The dataset was created through a meticulous annotation process where representa
 
 For experimental evaluation, the dataset was divided into training and validation sets containing 182 and 58 images, respectively, maintaining representative distributions across all sky condition classes.
 
-#### 2.1.2 Sky Finder Active Dataset
+#### 4.1.2 Sky Finder Active Dataset
 
 To address the limited size of manually annotated data, we implement an active learning framework that leverages high-confidence pseudo-labels from the broader Sky Finder dataset.
 
@@ -470,7 +470,7 @@ This active learning approach expands the training set with 359 high-confidence 
 
 
 
-### 2.2 Model Architecture
+### 4.2 Model Architecture
 
 The CC model employs a U-Net [8] architecture with a ResNet50 backbone pretrained on ImageNet serving as the feature encoder. This encoder-decoder structure is specifically designed for dense prediction tasks, making it well-suited for pixel-level cloud segmentation.
 
@@ -487,7 +487,7 @@ This auxiliary branch provides additional supervisory signal during training, en
 
 
 
-### 2.3 Training Objective
+### 4.3 Training Objective
 
 The training objective combines three complementary loss functions to optimize both segmentation accuracy and classification consistency:
 
@@ -513,18 +513,18 @@ Where $y$ is the ground truth sky condition class and $\hat{y}$ is the predicted
 
 
 
-### 2.4 Training Procedure
+### 4.4 Training Procedure
 
 The cloud coverage model was trained using a two-stage approach to leverage both manually annotated and pseudo-labeled data effectively:
 
-#### 2.4.1 Manual Labels Only:
+#### 4.4.1 Manual Labels Only:
 
 - **Optimizer:** AdamW with learning rate $10^{-4}$ and weight decay $10^{-4}$.
 - **Batch Size:** 2 images per batch.
 - **Training Duration:** 100 epochs.
 - **Learning Rate Scheduler:** Reduce on plateau with patience of 1 epoch and factor of 0.5.
 
-#### 2.4.2 Active Learning Enhancement:
+#### 4.4.2 Active Learning Enhancement:
 
 - **Initialization:** Best checkpoint from Stage 1.
 - **Additional Data:** 359 pseudo-labeled training images, 128 pseudo-labeled validation images.
@@ -537,9 +537,9 @@ The cloud coverage model was trained using a two-stage approach to leverage both
 
 
 
-### 2.5 Results
+### 4.5 Results
 
-#### 2.5.1 Quantitative Performance Analysis
+#### 4.5.1 Quantitative Performance Analysis
 
 The cloud coverage model demonstrates strong performance across multiple evaluation metrics, with the active learning approach showing consistent improvements over the baseline model trained solely on manual annotations. The active learning enhanced model demonstrates superior performance across all metrics, with IoU improvements ranging from 2.7% to 7.1% depending on the validation set composition. The best configuration achieves a mean absolute coverage error of 8.24%, representing good accuracy in quantitative cloud coverage estimation across diverse sky conditions.
 
@@ -558,7 +558,7 @@ The cloud coverage model demonstrates strong performance across multiple evaluat
 
 </div>
 
-#### 2.5.2 SID Space Visualization with Cloud Coverage
+#### 4.5.2 SID Space Visualization with Cloud Coverage
 
 To understand the relationship between learned sky representations and cloud coverage estimates, we visualized the Sky Image Descriptor (SID) space colored by predicted cloud coverage values. This analysis reveals important insights about model performance and limitations.
 
@@ -574,9 +574,9 @@ The observed performance disparity in uniform overcast conditions can be attribu
 
 
 
-### 2.6 Reproduction Procedure
+### 4.6 Reproduction Procedure
 
-#### 2.6.1 Training and Evaluating the CC Model
+#### 4.6.1 Training and Evaluating the CC Model
 
 To train the cloud coverage model and evaluate its performance:
 
@@ -607,12 +607,16 @@ Model weights will be saved in the `data/models/unet` directory. If you want to 
 
 ```bash
 cd src/unet
-python unet_eval.py [--active] [--with-pseudo-labelling]
+python unet_eval.py [-a] [--with-pseudo-labelling]
 ```
+
+**Parameters:**
+- `-a`, `--active`: (Optional) Wether to evaluate the model trained with active learning (pseudo-labelling).
+- `-p`, `--with-pseudo-labelling`: (Optional) Wether to evaluate the model with pseudo-labelling samples or not.
 
 The evaluation results will demonstrate the model's effectiveness at pixel-level cloud segmentation and coverage estimation, providing continuous IoU, Dice coefficient, coverage error, and sky class prediction metrics.
 
-#### 2.6.2 Generating Sky Finder Descriptors
+#### 4.6.2 Generating Sky Finder Descriptors
 
 If not already done, generate the descriptors for the Sky Finder dataset by executing the following commands:
 
@@ -627,14 +631,11 @@ python generate_sky_finder_descriptors.py [-w <workers>] [-f]
 
 The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
 
-#### 2.6.3 Plotting the SID Space with Cloud Coverage
-
-cd src/pipeline
-python .\plot_sky_image_descriptor_space.py -c cloud_cover
+#### 4.6.3 Plotting the SID Space with Cloud Coverage
 
 ```bash
 cd src/pipeline
-python plot_sky_image_descriptor_space.py color [-i <interactive>]
+python plot_sky_image_descriptor_space.py -c cloud_cover [-i <interactive>]
 ```
 
 **Parameters:**
@@ -642,13 +643,13 @@ python plot_sky_image_descriptor_space.py color [-i <interactive>]
 
 
 
-## 3. Optical Flow
+## 5. Optical Flow
 
 Optical flow analysis captures the dynamic characteristics of sky conditions by quantifying pixel-level motion patterns between consecutive video frames. This temporal descriptor provides insights into cloud movement, atmospheric dynamics, and weather transitions that are impossible to capture from static images alone, serving as a complementary feature to the appearance-based Sky Image Descriptors.
 
 
 
-### 3.1 Methodology
+### 5.1 Methodology
 
 We employ the Farneback optical flow algorithm implemented in OpenCV to compute dense optical flow fields between consecutive frames sampled at 3-second intervals in sky videos. The Farneback method estimates motion by analyzing the displacement of intensity patterns between frames, making it well-suited for capturing cloud movement and atmospheric dynamics without requiring feature tracking.
 
@@ -656,9 +657,9 @@ For each video sequence, we extract the mean optical flow magnitude across all s
 
 
 
-### 3.2 Results
+### 5.2 Results
 
-#### 3.2.1 Optical Flow Magnitude in SID Space
+#### 5.2.1 Optical Flow Magnitude in SID Space
 
 To understand the relationship between sky appearance and motion characteristics, we Figure 5 shows the SID space colored by optical flow magnitude values from our 45 window view scenes. This analysis reveals the distribution of motion patterns across different sky conditions and their correspondence with the learned appearance representations.
 
@@ -671,9 +672,9 @@ To understand the relationship between sky appearance and motion characteristics
 
 The visualization reveals clear trends in optical flow magnitude distribution across the SID space that align with the physical characteristics of different sky conditions. Clear skies in the rightmost cluster typically exhibit low optical flow values (dark blue), as these uniform conditions lack moving visual features that would generate significant motion patterns. Similarly, the upper left region of the SID space, which corresponds to uniform overcast and foggy conditions as identified in previous analysis, also shows predominantly low optical flow magnitudes due to the homogeneous, static nature of these atmospheric conditions. In contrast, the highest optical flow magnitudes appear in regions corresponding to overcast and partial sky conditions with higher visual contrast, where distinct cloud formations create clearly differentiated patterns against the sky background. These structured cloud environments generate substantial motion patterns as cloud formations move across the sky due to wind and changing atmospheric conditions, resulting in the elevated optical flow values observed in these intermediate regions of the SID space.
 
-### 3.3 Reproduction Procedure
+### 5.3 Reproduction Procedure
 
-#### 3.6.1 Generating Sky Finder Descriptors
+#### 5.6.1 Generating Sky Finder Descriptors
 
 If not already done, generate the descriptors for the Sky Finder dataset by executing the following commands:
 
@@ -688,9 +689,11 @@ python generate_sky_finder_descriptors.py [-w <workers>] [-f]
 
 The generated descriptors will be saved in the [generated/sky_finder_descriptors.json](generated/sky_finder_descriptors.json) file.
 
-#### 3.6.2 Generating Scene Descriptors
+#### 5.6.2 Generating New Data Descriptors
 
-### 3.6.3 Plotting the SID Space with New Data Optical Flow
+Follow the steps in Section 3.7.6 to prepare the new video dataset and manually annotated masks, clone the GSAM2 repository, and run the projection script to generate descriptors for the new sky videos. The descriptors will be saved in the [generated/pipeline](generated/pipeline) directory.
+
+### 5.6.3 Plotting the SID Space with New Data Optical Flow
 
 
 python plot_pipeline_all.py -c optical_flow [-p <pipeline-path>]
