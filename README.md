@@ -393,7 +393,8 @@ To project new sky videos into the SID space, follow these steps:
   ```bash
   cd gsam2/checkpoints
   bash download_ckpts.sh
-
+  ```
+  ```bash
   cd gsam2/gdino_checkpoints
   bash download_ckpts.sh
   ```
