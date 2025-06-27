@@ -15,7 +15,7 @@ To set up the environment, follow these steps:
 TODO
 Most data used is publicly available. The only data that is not publicly available is the collected scenes from the EPFL campus. Contact arnaud.poletto@epfl.ch for any questions.
 
-for avaiable data, unzip the `data.zip` file in the root directory of the repository. This will create a `data` folder containing all the necessary datasets and models.
+for avaiable data, unzip the .zip archives file in the data directory of the repository. namely models.zip, sky_finder.zip, sky_finder_active_learning.zip, sky_finder_cover.zip
 
 ## 1. Sky Image Descriptor
 
