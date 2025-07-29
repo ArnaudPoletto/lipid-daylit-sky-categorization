@@ -1,5 +1,7 @@
 # Daylit Sky Categorization Using Image Processing: A Comparison with CIE Standards
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16563501.svg)](https://doi.org/10.5281/zenodo.16563501)
+
 ## 1. Introduction
 
 Daylight is an inherently complex and dynamic resource that continuously shapes our built environment through its spectral composition, intensity, and directional structure. Accurate characterization of sky conditions underpins virtually every aspect of contemporary lighting research, from circadian-stimulus metrics and glare probability assessments to façade aperture sizing and adaptive shading algorithms. Without standardized methods for describing daylit skies, results from field studies, laboratory experiments, and computational simulations remain difficult to compare, aggregate, or apply in practice.
